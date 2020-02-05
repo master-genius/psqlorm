@@ -43,6 +43,11 @@ class model {
     return this;
   }
 
+  run() {
+    this.fetchSql = false;
+    return this;
+  }
+
   /**
    * 
    * @param {object} cond SQL语句的条件
@@ -50,7 +55,10 @@ class model {
    */
 
   qoute (a) {
-    if (!isNaN(a)) {
+    /* if (!isNaN(a)) {
+      return a;
+    } */
+    if (typeof a !== 'string') {
       return a;
     }
     if (a[0] == '@') {
@@ -60,7 +68,10 @@ class model {
   }
 
   qoute2 (a) {
-    if (!isNaN(a)) {
+    /* if (!isNaN(a)) {
+      return a;
+    } */
+    if (typeof a !== 'string') {
       return a;
     }
     return `$$$$${a}$$$$`;
@@ -137,19 +148,19 @@ class model {
     var sql = '';
     switch (this.sqlUnit.command) {
       case 'SELECT':
-        sql = `SELECT ${this.sqlUnit.fields} FROM ${this.tableName} `
+        sql = `SELECT ${this.sqlUnit.fields} FROM ${this.tableName} ${this.sqlUnit.join} `
             + `${this.sqlUnit.where.length > 0 ? 'WHERE ' : ''}${this.sqlUnit.where} `
-            + `${this.sqlUnit.order} ${this.sqlUnit.limit}`;
+            + `${this.sqlUnit.order} ${this.sqlUnit.limit};`;
         break;
       case 'DELETE':
-        sql = `DELETE FROM ${this.tableName} WHERE ${this.sqlUnit.where}`;
+        sql = `DELETE FROM ${this.tableName} WHERE ${this.sqlUnit.where};`;
         break;
       case 'UPDATE':
         sql = `UPDATE ${this.tableName} SET ${this.sqlUnit.values} `
-          +`${this.sqlUnit.where.length > 0 ? ' WHERE ' : ''} ${this.sqlUnit.where}`;
+          +`${this.sqlUnit.where.length > 0 ? ' WHERE ' : ''} ${this.sqlUnit.where};`;
         break;
       case 'INSERT':
-        sql = `INSERT INTO ${this.tableName} ${this.sqlUnit.fields} VALUES ${this.sqlUnit.values}`;
+        sql = `INSERT INTO ${this.tableName} ${this.sqlUnit.fields} VALUES ${this.sqlUnit.values};`;
         break;
     }
     return sql;
@@ -186,7 +197,7 @@ class model {
     this.sqlUnit.fields = `(${fields.join(',')})`;
     let vals = [];
     for (let k in data) {
-      vals.push(`${k}=${this.qoute(data[k])}`);
+      vals.push(`${this.qoute(data[k])}`);
     }
     this.sqlUnit.values = `(${vals.join(',')})`;
     return this.exec();
@@ -205,7 +216,7 @@ class model {
     for (let i=0; i < data.length; i++) {
       vals = [];
       for (let k in data[i]) {
-        vals.push(`${k}=${this.qoute(data[i][k])}`);
+        vals.push(`${this.qoute(data[i][k])}`);
       }
       vallist.push(`(${vals.join(',')})`);
     }
@@ -228,7 +239,7 @@ class model {
   }
 
   async transcation (callback) {
-    if (typeof callback !== 'function' || !(callback instanceof AsyncFunction)) {
+    if (typeof callback !== 'function' || callback.constructor.name !== 'AsyncFunction') {
       throw new Error('callback must be async function');
     }
     try {
@@ -241,7 +252,6 @@ class model {
       throw err;
     }
   }
-
 
 }
 
