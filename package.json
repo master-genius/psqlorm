@@ -1,0 +1,25 @@
+{
+  "name": "pgmodel",
+  "version": "1.0.0",
+  "description": "model for pg",
+  "main": "model.js",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/master-genius/pgmodel.git"
+  },
+  "keywords": [
+    "model",
+    "pg",
+    "postgresql",
+    "postgres"
+  ],
+  "author": "BraveWang",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/master-genius/pgmodel/issues"
+  },
+  "homepage": "https://github.com/master-genius/pgmodel#readme"
+}
