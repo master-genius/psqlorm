@@ -1,16 +1,19 @@
 {
-  "name": "pgmodel",
-  "version": "1.0.0",
-  "description": "model for pg",
+  "name": "psqlorm",
+  "version": "1.0.1",
+  "description": "orm for pg",
   "main": "model.js",
   "scripts": {
     "test": "node test.js"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/master-genius/pgmodel.git"
+    "url": "git+https://github.com/master-genius/psqlorm.git"
   },
   "keywords": [
+    "psqlorm",
+    "orm",
+    "psql",
     "model",
     "pg",
     "postgresql",
