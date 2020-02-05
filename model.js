@@ -48,12 +48,6 @@ class model {
     return this;
   }
 
-  /**
-   * 
-   * @param {object} cond SQL语句的条件
-   * 
-   */
-
   qoute (a) {
     /* if (!isNaN(a)) {
       return a;
@@ -68,14 +62,17 @@ class model {
   }
 
   qoute2 (a) {
-    /* if (!isNaN(a)) {
-      return a;
-    } */
     if (typeof a !== 'string') {
       return a;
     }
     return `$$$$${a}$$$$`;
   }
+
+  /**
+   * 
+   * @param {string | object} cond 条件，如果是字符串，args表示字符串中?要替换的参数
+   * @param {array} args 
+   */
   
   where (cond, args = []) {
     if (typeof cond === 'string') {
@@ -245,11 +242,19 @@ class model {
     try {
       var self = this;
       await this.db.query('BEGIN');
-      await callback(self);
-      return await this.db.query('COMMIT');
+      let cret = await callback(self);
+      let r = await this.db.query('COMMIT');
+      return {
+        callbackResult : cret,
+        result : r,
+        error : null
+      };
     } catch (err) {
       this.db.query('ROLLBACK');
-      throw err;
+      return {
+        result : null,
+        error : err
+      };
     }
   }
 
