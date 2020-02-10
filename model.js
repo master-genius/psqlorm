@@ -235,6 +235,11 @@ class model {
     return this.exec();
   }
 
+  async count () {
+    let r = await this.select('COUNT(*) as total');
+    return r.rows[0].total;
+  }
+
   async transcation (callback) {
     if (typeof callback !== 'function' || callback.constructor.name !== 'AsyncFunction') {
       throw new Error('callback must be async function');
