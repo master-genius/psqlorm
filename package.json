@@ -1,13 +1,10 @@
 {
   "name": "psqlorm",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "description": "orm for pg",
-  "main": "model.js",
+  "main": "porm.js",
   "scripts": {
     "test": "node test.js"
-  },
-  "dependencies": {
-    "pg" : "^7.18"
   },
   "repository": {
     "type": "git",
