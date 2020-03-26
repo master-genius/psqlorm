@@ -42,6 +42,14 @@ class model {
     }
     return this.tableName;
   }
+  
+  model (tableName = '') {
+    if (typeof tableName === 'string' && tableName.length > 0) {
+      this.tableName = tableName;
+      return this;
+    }
+    return this;
+  }
 
   fetch() {
     this.fetchSql = true;
@@ -252,30 +260,36 @@ class model {
       throw new Error('callback must be async function');
     }
     
-    this.db = await this.odb.connect();
+    var finalRet = {
+      cret : null,
+      result : null,
+      errmsg : ''
+    }
 
     try {
+
+      this.db = await this.odb.connect();
+
       await this.db.query('BEGIN');
       
       let cret = await callback(this);
 
       let r = await this.db.query('COMMIT');
+      
+      finalRet.cret = cret;
+      finalRet.result = r;
 
-      return {
-        callbackResult : cret,
-        result : r,
-        error : null
-      };
     } catch (err) {
+      //console.log('--DEBUG--', err.message);
       this.db.query('ROLLBACK');
-      return {
-        result : null,
-        error : err
-      };
+      finalRet.errmsg = err.message;
     } finally {
       this.db.release();
       this.db = this.odb;
     }
+    
+    return finalRet;
+
   }
 
 }
