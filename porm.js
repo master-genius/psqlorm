@@ -9,14 +9,20 @@ var pqorm = function (db) {
 
   this.db = db;
 
+  this.schema = 'public';
+
   this.setdb = (db) => {
     this.db = db;
   };
 
 };
 
+pqorm.prototype.setSchema = function (name) {
+  this.schema = name;
+}
+
 pqorm.prototype.model = function (tablename) {
-  return new mo(this.db, tablename);
+  return new mo(this.db, tablename, this.schema);
 };
 
 module.exports = pqorm;

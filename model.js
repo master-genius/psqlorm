@@ -1,8 +1,11 @@
 class model {
 
-  constructor (db, tableName = '') {
+    //schema = '' default public
+  constructor (db, tableName = '', schema = 'public') {
     this.db = db;
     this.tableName = tableName;
+    this.schema = schema || 'public';
+
     this.fetchSql = false;
     this.sqlUnit = {
       command : '',
@@ -118,16 +121,16 @@ class model {
     return this;
   }
 
-  join (on, join_type = 'INNER') {
-    this.sqlUnit.join = `${join_type} JOIN ON ${on}`;
+  join (table, on, join_type = 'INNER') {
+    this.sqlUnit.join = `${join_type} JOIN ${this.schema}.${this.tableName} ON ${on}`;
     return this;
   }
 
-  leftJoin (on) {
+  leftJoin (table, on) {
     return this.join(on, 'LEFT');
   }
 
-  rightJoin(on) {
+  rightJoin(table, on) {
     return this.join(on, 'RIGHT');
   }
 
@@ -143,21 +146,23 @@ class model {
 
   psql() {
     var sql = '';
+    var schemaTable = `${this.schema}.${this.tableName}`;
+
     switch (this.sqlUnit.command) {
       case 'SELECT':
-        sql = `SELECT ${this.sqlUnit.fields} FROM ${this.tableName} ${this.sqlUnit.join} `
+        sql = `SELECT ${this.sqlUnit.fields} FROM ${schemaTable} ${this.sqlUnit.join} `
             + `${this.sqlUnit.where.length > 0 ? 'WHERE ' : ''}${this.sqlUnit.where} `
             + `${this.sqlUnit.order} ${this.sqlUnit.limit};`;
         break;
       case 'DELETE':
-        sql = `DELETE FROM ${this.tableName} WHERE ${this.sqlUnit.where};`;
+        sql = `DELETE FROM ${schemaTable} WHERE ${this.sqlUnit.where};`;
         break;
       case 'UPDATE':
-        sql = `UPDATE ${this.tableName} SET ${this.sqlUnit.values} `
+        sql = `UPDATE ${schemaTable} SET ${this.sqlUnit.values} `
           +`${this.sqlUnit.where.length > 0 ? ' WHERE ' : ''} ${this.sqlUnit.where};`;
         break;
       case 'INSERT':
-        sql = `INSERT INTO ${this.tableName} ${this.sqlUnit.fields} VALUES ${this.sqlUnit.values};`;
+        sql = `INSERT INTO ${schemaTable} ${this.sqlUnit.fields} VALUES ${this.sqlUnit.values};`;
         break;
     }
     return sql;
@@ -245,10 +250,14 @@ class model {
       throw new Error('callback must be async function');
     }
     try {
-      var self = this;
-      await this.db.query('BEGIN');
-      let cret = await callback(self);
-      let r = await this.db.query('COMMIT');
+      var tcli = await this.db.connect();
+      
+      await tcli.query('BEGIN');
+      
+      let cret = await callback(tcli);
+
+      let r = await tcli.query('COMMIT');
+
       return {
         callbackResult : cret,
         result : r,
