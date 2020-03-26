@@ -2,7 +2,9 @@ class model {
 
     //schema = '' default public
   constructor (db, tableName = '', schema = 'public') {
+    this.odb = db;
     this.db = db;
+
     this.tableName = tableName;
     this.schema = schema || 'public';
 
@@ -249,14 +251,15 @@ class model {
     if (typeof callback !== 'function' || callback.constructor.name !== 'AsyncFunction') {
       throw new Error('callback must be async function');
     }
-    try {
-      var tcli = await this.db.connect();
-      
-      await tcli.query('BEGIN');
-      
-      let cret = await callback(tcli);
+    
+    this.db = await this.odb.connect();
 
-      let r = await tcli.query('COMMIT');
+    try {
+      await this.db.query('BEGIN');
+      
+      let cret = await callback(this);
+
+      let r = await this.db.query('COMMIT');
 
       return {
         callbackResult : cret,
@@ -269,9 +272,13 @@ class model {
         result : null,
         error : err
       };
+    } finally {
+      this.db.release();
+      this.db = this.odb;
     }
   }
 
 }
 
 module.exports = model;
+
