@@ -137,11 +137,11 @@ class model {
   }
 
   leftJoin (table, on) {
-    return this.join(on, 'LEFT');
+    return this.join(table, on, 'LEFT');
   }
 
   rightJoin(table, on) {
-    return this.join(on, 'RIGHT');
+    return this.join(table, on, 'RIGHT');
   }
 
   order (ostr) {
