@@ -145,7 +145,7 @@ class model {
   }
 
   order (ostr) {
-    this.sqlUnit.order = ostr;
+    this.sqlUnit.order = `ORDER BY ${ostr}`;
     return this;
   }
 
