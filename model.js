@@ -132,7 +132,7 @@ class model {
   }
 
   join (table, on, join_type = 'INNER') {
-    this.sqlUnit.join = `${join_type} JOIN ${this.schema}.${this.tableName} ON ${on}`;
+    this.sqlUnit.join += `${join_type} JOIN ${this.schema}.${table} ON ${on} `;
     return this;
   }
 
