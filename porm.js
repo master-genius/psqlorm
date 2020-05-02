@@ -21,8 +21,8 @@ pqorm.prototype.setSchema = function (name) {
   this.schema = name;
 }
 
-pqorm.prototype.model = function (tablename) {
-  return new mo(this.db, tablename, this.schema);
+pqorm.prototype.model = function (tablename, schema = '') {
+  return new mo(this.db, tablename, schema || this.schema);
 };
 
 module.exports = pqorm;
