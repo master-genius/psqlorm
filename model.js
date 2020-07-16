@@ -89,13 +89,29 @@ class model {
   
   where (cond, args = []) {
     if (typeof cond === 'string') {
-      for (let i=0; i<args.length; i++) {
-        cond = cond.replace('?', `${this.qoute2(args[i])}`);
+      let whstr = '';
+      if (cond.indexOf('?') < 0) {
+        whstr = cond;
+      } else {
+        let carr = cond.split('?');
+        let condarr = [];
+        for (let i=0; i<args.length; i++) {
+          condarr.push(carr[i]);
+          condarr.push( this.qoute(args[i]) );
+        }
+        condarr.push(carr[carr.length-1]);
+        whstr = condarr.join('');
+        carr = condarr = null;
       }
+
+      //for (let i=0; i<args.length; i++) {
+      //  cond = cond.replace('?', `${this.qoute2(args[i])}`);
+      //}
+
       if (this.sqlUnit.where.length > 0) {
         this.sqlUnit.where += ' AND ';
       }
-      this.sqlUnit.where += cond;
+      this.sqlUnit.where += whstr;
     } else if (typeof cond === 'object') {
       let tmp = [];
       let t = null;
