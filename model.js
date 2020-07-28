@@ -271,7 +271,7 @@ class model {
     return r.rows[0].total;
   }
 
-  async transcation (callback) {
+  async transaction (callback) {
     if (typeof callback !== 'function' || callback.constructor.name !== 'AsyncFunction') {
       throw new Error('callback must be async function');
     }
@@ -289,6 +289,9 @@ class model {
       await this.db.query('BEGIN');
       
       let cret = await callback(this);
+      if (cret !== undefined && typeof cret === 'object' && cret.failed === true) {
+        throw new Error('Transaction failed.');
+      }
 
       let r = await this.db.query('COMMIT');
       
