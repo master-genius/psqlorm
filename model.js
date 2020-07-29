@@ -290,7 +290,7 @@ class model {
       
       let cret = await callback(this);
       if (cret !== undefined && typeof cret === 'object' && cret.failed === true) {
-        throw new Error('Transaction failed.');
+        throw new Error(cret.errmsg || 'Transaction failed.');
       }
 
       let r = await this.db.query('COMMIT');
