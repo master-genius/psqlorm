@@ -18,7 +18,8 @@ class model {
       limit : '',
       order : '',
       offset : 0,
-      join : ''
+      join : '',
+      group: ''
     };
     this.last = null;
   }
@@ -33,6 +34,7 @@ class model {
     this.sqlUnit.offset = 0;
     this.sqlUnit.join = '';
     this.sqlUnit.order = '';
+    this.sqlUnit.group = '';
   }
 
   table (tableName = '') {
@@ -160,8 +162,13 @@ class model {
     return this.join(table, on, 'RIGHT');
   }
 
+  group (grpstr) {
+    this.sqlUnit.group = `GROUP BY ${grpstr} `;
+    return this;
+  }
+
   order (ostr) {
-    this.sqlUnit.order = `ORDER BY ${ostr}`;
+    this.sqlUnit.order = `ORDER BY ${ostr} `;
     return this;
   }
 
@@ -178,7 +185,7 @@ class model {
       case 'SELECT':
         sql = `SELECT ${this.sqlUnit.fields} FROM ${schemaTable} ${this.sqlUnit.join} `
             + `${this.sqlUnit.where.length > 0 ? 'WHERE ' : ''}${this.sqlUnit.where} `
-            + `${this.sqlUnit.order} ${this.sqlUnit.limit};`;
+            + `${this.sqlUnit.group}${this.sqlUnit.order}${this.sqlUnit.limit};`;
         break;
       case 'DELETE':
         sql = `DELETE FROM ${schemaTable} WHERE ${this.sqlUnit.where};`;
