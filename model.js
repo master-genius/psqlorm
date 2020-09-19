@@ -114,11 +114,13 @@ class model {
         this.sqlUnit.where += ' AND ';
       }
       this.sqlUnit.where += whstr;
+
     } else if (typeof cond === 'object') {
       let tmp = [];
       let t = null;
       let vals = [];
       for (let k in cond) {
+        
         if (cond[k] instanceof Array) {
           vals = [];
           for (let i=0; i<cond[k].length; i++) {
@@ -127,8 +129,11 @@ class model {
           tmp.push(`${k} IN (${vals.join(',')})`);
           continue;
         }
+        
         t = typeof cond[k];
+
         if (t === 'number' || t === 'string') {
+
           tmp.push(`${k}=${this.qoute(cond[k])}`);
 
         } else if (t === 'object') {
@@ -139,7 +144,10 @@ class model {
 
         }
 
-        if (this.sqlUnit.where.length > 0 && tmp.length > 0) {
+      }
+      
+      if (tmp.length > 0) {
+        if (this.sqlUnit.where.length > 0) {
           this.sqlUnit.where += ' AND ';
         }
         this.sqlUnit.where += tmp.join(' AND ');
