@@ -70,9 +70,10 @@ class model {
     if (typeof a !== 'string') {
       return a;
     }
-    if (a[0] == '@') {
+    if (a[0] === '@') {
       return a.substring(1);
     }
+
     return `$$${a}$$`;
   }
 
@@ -138,9 +139,9 @@ class model {
 
         } else if (t === 'object') {
           
-          let ks = Object.keys(cond[k]);
-          if (ks.length == 0) {continue;}
-          tmp.push(`${k} ${ks[0]} ${this.qoute(cond[k][ ks[0] ])}`);
+          for (let ks in cond[k]) {
+            tmp.push(`${k} ${ks} ${this.qoute(cond[k][ks])}`);
+          }
 
         }
 
