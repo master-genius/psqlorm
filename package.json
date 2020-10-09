@@ -1,14 +1,14 @@
 {
   "name": "psqlorm",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "description": "orm for pg",
-  "main": "porm.js",
+  "main": "pqorm.js",
   "scripts": {
-    "test": "node test.js"
+    "test": "echo ok"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/master-genius/psqlorm.git"
+    "url": "https://gitee.com/daoio/psqlorm"
   },
   "keywords": [
     "psqlorm",
@@ -22,7 +22,7 @@
   "author": "BraveWang",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/master-genius/psqlorm/issues"
+    "url": "https://gitee.com/daoio/psqlorm/issues"
   },
-  "homepage": "https://github.com/master-genius/psqlorm#readme"
+  "homepage": "https://gitee.com/daoio/psqlorm/README.md"
 }

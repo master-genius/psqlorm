@@ -77,12 +77,15 @@ class model {
     return `$$${a}$$`;
   }
 
+  //在使用replace时，$被认为是格式化字符串标识，目前不需要。
+  /*
   qoute2 (a) {
     if (typeof a !== 'string') {
       return a;
     }
     return `$$$$${a}$$$$`;
   }
+  */
 
   /**
    * 
