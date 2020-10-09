@@ -30,7 +30,7 @@ pqorm.prototype.transaction = async function (callback, schema = '') {
   return (new mo(this.db, '', schema || this.schema)).transaction(callback);
 };
 
-pq.Model = pqmodel;
+pqorm.Model = pqmodel;
 
 
 module.exports = pqorm;
