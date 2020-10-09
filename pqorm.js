@@ -19,11 +19,14 @@ var pqorm = function (db) {
 
 pqorm.prototype.setSchema = function (name) {
   this.schema = name;
-}
+};
 
 pqorm.prototype.model = function (tablename, schema = '') {
   return new mo(this.db, tablename, schema || this.schema);
 };
 
-module.exports = pqorm;
+pqorm.prototype.transaction = async function (callback, schema = '') {
+  return (new mo(this.db, '', schema || this.schema)).transaction(callback);
+};
 
+module.exports = pqorm;

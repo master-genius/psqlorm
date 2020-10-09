@@ -1,4 +1,4 @@
-const porm = require('../porm.js');
+const porm = require('../pqorm.js');
 
 var pgdb = {};
 

@@ -37,13 +37,13 @@ class model {
     this.sqlUnit.group = '';
   }
 
-  table (tableName = '') {
+  /* table (tableName = '') {
     if (typeof tableName === 'string' && tableName.length > 0) {
       this.tableName = tableName;
       return this;
     }
     return this.tableName;
-  }
+  } */
   
   model (tableName = '') {
     if (typeof tableName === 'string' && tableName.length > 0) {
@@ -308,6 +308,7 @@ class model {
       await this.db.query('BEGIN');
       
       let cret = await callback(this);
+      
       if (cret !== undefined && typeof cret === 'object' && cret.failed === true) {
         throw new Error(cret.errmsg || 'Transaction failed.');
       }
@@ -333,4 +334,3 @@ class model {
 }
 
 module.exports = model;
-
