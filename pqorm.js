@@ -1,6 +1,7 @@
 'use strict';
 
 const mo = require ('./model.js');
+const pqmodel = require('./pqmodel');
 
 var pqorm = function (db) {
   if (!(this instanceof pqorm)) {
@@ -28,5 +29,8 @@ pqorm.prototype.model = function (tablename, schema = '') {
 pqorm.prototype.transaction = async function (callback, schema = '') {
   return (new mo(this.db, '', schema || this.schema)).transaction(callback);
 };
+
+pq.Model = pqmodel;
+
 
 module.exports = pqorm;
