@@ -37,19 +37,16 @@ class model {
     this.sqlUnit.group = '';
   }
 
-  /* table (tableName = '') {
+  model (tableName = '', schema = null) {
     if (typeof tableName === 'string' && tableName.length > 0) {
       this.tableName = tableName;
       return this;
     }
-    return this.tableName;
-  } */
-  
-  model (tableName = '') {
-    if (typeof tableName === 'string' && tableName.length > 0) {
-      this.tableName = tableName;
-      return this;
+
+    if (schema !== null) {
+      this.schema = schema;
     }
+
     return this;
   }
 
@@ -199,16 +196,20 @@ class model {
             + `${this.sqlUnit.where.length > 0 ? 'WHERE ' : ''}${this.sqlUnit.where} `
             + `${this.sqlUnit.group}${this.sqlUnit.order}${this.sqlUnit.limit};`;
         break;
+
       case 'DELETE':
         sql = `DELETE FROM ${schemaTable} WHERE ${this.sqlUnit.where};`;
         break;
+
       case 'UPDATE':
         sql = `UPDATE ${schemaTable} SET ${this.sqlUnit.values} `
           +`${this.sqlUnit.where.length > 0 ? ' WHERE ' : ''} ${this.sqlUnit.where};`;
         break;
+
       case 'INSERT':
         sql = `INSERT INTO ${schemaTable} ${this.sqlUnit.fields} VALUES ${this.sqlUnit.values};`;
         break;
+
     }
     return sql;
   }
@@ -258,8 +259,10 @@ class model {
     let fields = Object.keys(data[0]);
 
     this.sqlUnit.fields = `(${fields.join(',')})`;
+    
     let vals = [];
     let vallist = [];
+
     for (let i=0; i < data.length; i++) {
       vals = [];
       for (let k in data[i]) {
@@ -267,7 +270,9 @@ class model {
       }
       vallist.push(`(${vals.join(',')})`);
     }
+    
     this.sqlUnit.values = `${vallist.join(',')}`;
+
     return this.exec();
   }
 
