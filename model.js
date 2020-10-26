@@ -1,12 +1,14 @@
 class model {
 
     //schema = '' default public
-  constructor (db, tableName = '', schema = 'public') {
+  constructor (db, tableName = '', schema = 'public', myparent = null) {
     this.odb = db;
     this.db = db;
 
     this.tableName = tableName;
     this.schema = schema || 'public';
+
+    this.parent = myparent;
 
     this.fetchSql = false;
     this.sqlUnit = {
@@ -35,6 +37,7 @@ class model {
     this.sqlUnit.join = '';
     this.sqlUnit.order = '';
     this.sqlUnit.group = '';
+    this.last = null;
   }
 
   model (tableName = '', schema = null) {
@@ -220,8 +223,15 @@ class model {
     if (this.fetchSql) {
       return sql;
     }
-    let r = await this.db.query(sql);
-    return r;
+
+    try {
+      let r = await this.db.query(sql);
+      return r;
+    } catch (err) {
+      throw err;
+    } finally {
+      this.parent.free(this);
+    }
   }
 
   async select (fields = '*') {
