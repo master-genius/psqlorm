@@ -132,9 +132,9 @@ const pqorm = new psqlorm(pgdb);
 
 ```
 
-## 事物
+## 事务
 
-事物有两种调用方式，一个是直接调用pqorm.transaction，另一个是从pqorm.model().transaction。实际上，第一种是对第二种的封装，不过支持第二个参数设置schema，默认为public。
+事务有两种调用方式，一个是直接调用pqorm.transaction，另一个是从pqorm.model().transaction。实际上，第一种是对第二种的封装，不过支持第二个参数设置schema，默认为public。
 
 ``` JavaScript
 
