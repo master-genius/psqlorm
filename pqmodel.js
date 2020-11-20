@@ -274,6 +274,8 @@ class pqmodel {
       return false;
     }
 
+    console.log(`start to sync table ${this.tableName}`)
+
     if (this.table.column === undefined || typeof this.table.column !== 'object') {
       console.error('column属性必须为object类型');
       return false;
@@ -361,8 +363,10 @@ class pqmodel {
 
     await this._syncUnique(curTableName, debug);
 
+    await this._removeIndex(curTableName, debug);
+
     if (debug) {
-      console.log('OK');
+      console.log(' - END - ');
     }
 
   }
@@ -446,7 +450,6 @@ class pqmodel {
          * 对于确实需要转换类型的情况，请自己实现转换程序，在设计数据库结构时，应该从一开始就考虑清楚。
          * 如果要设计运行良好的，可扩展并且支持程序动态处理的系统，无论数据库功能多丰富，都考虑清楚再使用。
          * 通常来说，基本的数据类型：数字、文本、二进制足够。
-         * 如果你还明白，说明你还不具备设计整体结构的能力，请教专业架构师后再做。
         */
 
         sql = `alter table ${curTableName} alter ${k} type ${col.type}`;
@@ -492,6 +495,9 @@ class pqmodel {
 
     let indtext = indname;
 
+    /**
+     * postgresql 会把联合索引多个字段使用 _ 连接。
+     */
     if (indname.indexOf(',') > 0) {
       indtext = indname.replace(',', '_');
     }
@@ -526,6 +532,13 @@ class pqmodel {
     for (let i = 0; i < this.table.index.length; i++) {
       
       indname = this.table.index[i];
+
+      if (this.table.removeIndex !== undefined
+        && (this.table.removeIndex instanceof Array)
+        && this.table.removeIndex.indexOf(indname) >= 0)
+      {
+        continue;
+      }
 
       if (this.table.column[indname] === undefined ) {
         console.error(`-- ${indname} ： 没有此字段，无法创建索引。`);
@@ -583,6 +596,13 @@ class pqmodel {
 
       indname = this.table.unique[i];
 
+      if (this.table.removeIndex !== undefined
+        && (this.table.removeIndex instanceof Array)
+        && this.table.removeIndex.indexOf(indname) >= 0)
+      {
+        continue;
+      }
+
       if (checkIndexField(indname) === false) {
         continue;
       }
@@ -594,6 +614,51 @@ class pqmodel {
       }
 
       await this.db.query(`create unique index on ${curTableName} (${indname})`);
+
+    }
+
+  }
+
+  async _removeIndex (curTableName, debug = false) {
+    if (!this.table.removeIndex || !(this.table.removeIndex instanceof Array)) {
+      return false;
+    }
+
+    if (debug) {
+      console.log('try to remove the unnecessary index...')
+    }
+
+    let tind = ''
+    let sql = ''
+
+    for (let i = 0; i < this.table.removeIndex.length; i++) {
+      
+      //表示没有此索引
+      if (true === await this._checkIndex(this.table.removeIndex[i])) {
+        continue;
+      }
+
+      tind = this.table.removeIndex[i];
+      
+      if (tind.trim() === '') {
+        continue;
+      }
+
+      while (tind.indexOf(',') > 0) {
+        tind = tind.replace(',', '_');
+      }
+
+      sql = `drop index ${curTableName}_${tind}_idx`;
+      try {
+        if (debug) {
+          console.log(sql);
+        }
+        await this.db.query(sql);
+      } catch (err) {
+        if (debug) {
+          console.error(err)
+        }
+      }
 
     }
 
