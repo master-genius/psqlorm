@@ -58,10 +58,16 @@ pqorm.prototype.model = function (tablename, schema = '') {
 };
 
 pqorm.prototype.transaction = async function (callback, schema = '') {
-  return (new mo(this.db, '', schema || this.schema)).transaction(callback);
+
+  let m = this.getm('', schema || this.schema);
+
+  if (m) {
+    return m.transaction(callback);
+  }
+
+  return (new mo(this.db, '', schema || this.schema, this)).transaction(callback);
 };
 
 pqorm.Model = pqmodel;
-
 
 module.exports = pqorm;
