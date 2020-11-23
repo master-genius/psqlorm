@@ -10,6 +10,9 @@ class model {
 
     this.parent = myparent;
 
+    //用于事务处理时的锁定。
+    this._freeLock = false;
+
     this.fetchSql = false;
     this.sqlUnit = {
       command : '',
@@ -230,7 +233,10 @@ class model {
     } catch (err) {
       throw err;
     } finally {
-      this.parent.free(this);
+      if (!this._freeLock) {
+        this._freeLock = false;
+        this.parent.free(this);
+      }
     }
   }
 
@@ -311,8 +317,8 @@ class model {
     }
     
     var finalRet = {
-      cret : null,
       result : null,
+      ok : true,
       errmsg : ''
     }
 
@@ -320,26 +326,31 @@ class model {
 
       this.db = await this.odb.connect();
 
+      //事务中，锁定释放。
+      this._freeLock = true;
+
       await this.db.query('BEGIN');
       
       let cret = await callback(this);
       
-      if (cret !== undefined && typeof cret === 'object' && cret.failed === true) {
+      if ((cret && typeof cret === 'object' && cret.failed === true) || cret === false) {
         throw new Error(cret.errmsg || 'Transaction failed.');
       }
 
-      let r = await this.db.query('COMMIT');
-      
-      finalRet.cret = cret;
-      finalRet.result = r;
+      await this.db.query('COMMIT');
+    
+      finalRet.result = cret;
 
     } catch (err) {
       //console.log('--DEBUG--', err.message);
       this.db.query('ROLLBACK');
       finalRet.errmsg = err.message;
+      finalRet.ok = false;
     } finally {
       this.db.release();
       this.db = this.odb;
+      this._freeLock = false;
+      this.parent.free(this);
     }
     
     return finalRet;
