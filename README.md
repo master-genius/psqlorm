@@ -35,10 +35,14 @@ const pgdb = new pg.Pool({
     user     : 'USERNAME',
     password : 'PASSWORD',
     host     : 'localhost',
+    //连接池最大数量
     max      : 10
 });
 
+//pqorm.db 就可以访问pgdb。
 const pqorm = new psqlorm(pgdb);
+
+
 
 ;(async () => {
     pqorm.model('user')
@@ -48,6 +52,29 @@ const pqorm = new psqlorm(pgdb);
         .select();
 });
 
+
+```
+
+## 封装初始化函数
+
+``` JavaScript
+
+/**
+ * dbconfig : {
+ *   database : '',
+ *   password : '',
+ *   user     : '',
+ *   host     : '',
+ *   // 连接池最大数量
+ *   max      : 12
+ * }
+ */
+function initpgorm (dbconfig) {
+
+  let pdb = new pg.Pool(dbconfig)
+
+  return new psqlorm(pdb)
+}
 
 ```
 
@@ -130,6 +157,128 @@ const pqorm = new psqlorm(pgdb);
 });
 
 ```
+
+## 统计
+
+使用count函数进行数据统计。
+
+``` JavaScript
+
+const pqorm = new psqlorm(pgdb);
+
+;(async () => {
+
+  //生成SQL ：SELECT COUNT(*) as total FROM users WHERE age > 12 AND age < 18;
+
+  let total = await pqorm.model('users').where({
+    age : {
+      '>' : 12,
+      '<' : 18
+    }
+  }).count()
+
+  //total 是数字，如果没有就是0。
+
+  console.log(total)
+
+});
+
+```
+
+## 求和、均值、最大值、最小值
+
+提供了 sum、avg、max、min用于计算求和、均值、最大值、最小值。这几个函数，在查找到数据后返回值为数字，avg返回值为浮点类型，其他函数返回数字要看数据库字段是什么类型。
+
+**如果没有找到数据，则无法进行计算，此时会返回null。**
+
+``` JavaScript
+
+const pqorm = new psqlorm(pgdb);
+
+;(async () => {
+
+  let cond = {
+    sex : [1,2],
+    role : 'user'
+  }
+
+  //生成SQL：SELECT max(high) as max FROM users WHERE sex IN (1,2) AND role = 'user'
+
+  let max = await pqorm.model('users').where(cond).max('high')
+
+  let min = await pqorm.model('users').where(cond).min('high')
+
+  let avg = await pqorm.model('users').where(cond).avg('high')
+
+  console.log(max, min, avg)
+
+  //计算分数总和
+  let sum = await pqorm.model('users').where(cond).sum('score')
+
+  console.log(sum)
+
+});
+
+```
+
+## join、leftJoin、rightJoin
+
+join默认是INNER JOIN。三个函数的参数都是以下形式：
+
+```
+join (table, on) {
+  //...
+}
+```
+
+table是表名字，on是条件。
+
+``` JavaScript
+
+const pqorm = new psqlorm(pgdb)
+
+;(async () => {
+
+  let cond = {
+    role : 'test',
+  }
+
+  let ulist = await pqorm.model('users as u')
+                        .leftJoin('user_data as ud', 'u.id = ud.user_id')
+                        .where(cond)
+                        .select('u.id,username,u.detail,ud.page')
+
+  console.log(ulist)
+
+});
+
+```
+
+## order和limit
+
+order用于排序，limit限制查询条数并可以设定偏移量。limit第一个参数是要返回的数据条数，第二个参数是偏移量，默认为0。
+
+``` JavaScript
+
+const pqorm = new psqlorm(pgdb)
+
+;(async () => {
+
+  let cond = {
+    role : 'test',
+  }
+
+  let ulist = await pqorm.model('users')
+                          .where(cond)
+                          .order('age DESC,high ASC')
+                          .limit(10, 5); //从第5条开始返回10条。
+
+  console.log(ulist)
+
+});
+
+```
+
 
 ## 事务
 
