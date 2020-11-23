@@ -203,6 +203,10 @@ class pqmodel {
     return await this.model().where(cond).max(fields);
   }
 
+  async min (cond = {}, fields) {
+    return await this.model().where(cond).min(fields);
+  }
+
   async avg (cond = {}, fields) {
     return await this.model().where(cond).avg(fields);
   }

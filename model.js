@@ -321,6 +321,11 @@ class model {
     return r.rows[0].m;
   }
 
+  async min (field) {
+    let r = await this.select(`min(${field}) as m`);
+    return r.rows[0].m;
+  }
+
   async sum (field) {
     let r = await this.select(`sum(${field}) as sum`);
     return r.rows[0].sum;
