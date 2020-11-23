@@ -311,6 +311,21 @@ class model {
     return r.rows[0].total;
   }
 
+  async avg (field) {
+    let r = await this.select(`avg(${field}) as average`);
+    return r.rows[0].average;
+  }
+
+  async max (field) {
+    let r = await this.select(`max(${field}) as m`);
+    return r.rows[0].m;
+  }
+
+  async sum (field) {
+    let r = await this.select(`sum(${field}) as sum`);
+    return r.rows[0].sum;
+  }
+
   async transaction (callback) {
     if (typeof callback !== 'function' || callback.constructor.name !== 'AsyncFunction') {
       throw new Error('callback must be async function');
@@ -342,7 +357,7 @@ class model {
       finalRet.result = cret;
 
     } catch (err) {
-      //console.log('--DEBUG--', err.message);
+      //console.error('--DEBUG--', err.message);
       this.db.query('ROLLBACK');
       finalRet.errmsg = err.message;
       finalRet.ok = false;

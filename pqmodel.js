@@ -99,8 +99,8 @@ class pqmodel {
 
   }
 
-  model (tableName = null, schema = null) {
-    return this.orm.model(tableName || this.tableName, schema);
+  model (schema = null) {
+    return this.orm.model(this.tableName, schema);
   }
 
   makeId (cint = 0) {
@@ -195,8 +195,20 @@ class pqmodel {
   }
 
   async count (cond = {}) {
-    let total = await this.model().count(cond);
+    let total = await this.model().where(cond).count();
     return total;
+  }
+
+  async max (cond = {}, fields) {
+    return await this.model().where(cond).max(fields);
+  }
+
+  async avg (cond = {}, fields) {
+    return await this.model().where(cond).avg(fields);
+  }
+
+  async sum (cond = {}, fields) {
+    return await this.model().where(cond).sum(fields);
   }
 
   async transaction (callback, schema = '') {
@@ -529,6 +541,10 @@ class pqmodel {
   }
 
   async _syncIndex (curTableName, debug = false) {
+    if (this.table.index === undefined) {
+      return;
+    }
+
     if (!this.table.index || !(this.table.index instanceof Array) ) {
       console.error('index 属性必须为数组类型，其中值为字符串');
       return;
@@ -570,6 +586,10 @@ class pqmodel {
   }
 
   async _syncUnique (curTableName, debug = false) {
+
+    if (this.table.unique === undefined) {
+      return;
+    }
 
     if (!this.table.unique || !(this.table.unique instanceof Array) ) {
       console.error('unique 属性必须为数组类型，其中值为字符串');
