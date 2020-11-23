@@ -6,6 +6,7 @@ class pqmodel {
     if (pqorm) {
       this.orm = pqorm;
       this.db = pqorm.db;
+      this.odb = pqorm.db;
     }
 
     this.autoId = true;
@@ -198,25 +199,36 @@ class pqmodel {
     return total;
   }
 
-  async transaction (callback) {
+  async transaction (callback, schema = '') {
     
-    if (typeof callback !== 'function' || callback.constructor.name !== 'AsyncFunction') {
+    /* if (typeof callback !== 'function' || callback.constructor.name !== 'AsyncFunction') {
       throw new Error('callback must be async function');
-    }
+    } */
 
-    let self = this;
+    //let self = this;
 
-    return await this.model().transaction(async (db) => {
+    return this.orm.transaction(callback, schema);
+
+    /* return await this.orm.transaction(async (db) => {
       let ret = {
         failed: false,
         errmsg : ''
       };
 
-      //只有db才是事物安全的，可以保证原子操作，self只是为了方便访问其他数据。
-      await callback(db, self, ret);
+      //只有db才是事物安全的，可以保证原子操作。
+      //在model中，db已经被锁定到this.db，所以这里也要进行这样的操作，用来保证使用当前的get、insert等方法仍然是原子操作。
+      try {
+        await callback(db, self, ret);
+      } catch (err) {
+        ret.failed = true;
+        ret.errmsg = err.message;
+      } finally {
+        this.db = this.odb;
+      }
 
       return ret;
-    });
+    }, schema); */
+
   }
 
   /**
