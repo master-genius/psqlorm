@@ -1,6 +1,6 @@
 {
   "name": "psqlorm",
-  "version": "3.3.5",
+  "version": "4.0.0",
   "description": "orm for pg",
   "main": "pqorm.js",
   "scripts": {
