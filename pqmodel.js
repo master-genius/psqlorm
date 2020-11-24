@@ -501,7 +501,7 @@ class pqmodel {
         
       }
 
-      if (col.default) {
+      if (col.default !== undefined) {
         let real_default = this._realDefault(k, col.default);
 
         if (real_default !== inf[k].column_default) {
