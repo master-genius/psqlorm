@@ -56,6 +56,13 @@ class model {
     return this;
   }
 
+  alias (name) {
+    
+    this.tableName += ` as ${name}`;
+
+    return this;
+  }
+
   fetch() {
     this.fetchSql = true;
     return this;
