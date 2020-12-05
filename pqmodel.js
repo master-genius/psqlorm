@@ -15,6 +15,8 @@ class pqmodel {
 
     this.tableName = null;
 
+    this.aliasName = null;
+
     this.primaryKey = 'id';
 
     this.lastError = null;
@@ -101,6 +103,77 @@ class pqmodel {
 
   model (schema = null) {
     return this.orm.model(this.tableName, schema);
+  }
+
+
+  /**
+   * 
+   * @param {string} name
+   *
+   * */
+  alias (name) {
+    this.aliasName = name;
+    return this;
+  }
+
+  /**
+   * @param {object|string} m 通过this.relate获取的模型实例或直接指定表名的字符串。
+   * @param {string} on join条件。
+   * @param {string} join_type 默认INNER。
+   * @param {stirng} schema 默认为null，表示默认的schema。
+   *
+   * */
+
+  join (m, on, join_type = 'INNER', schema = null) {
+    
+    let tname;
+
+    if (typeof m === 'string') {
+      tname = m;
+    } else {
+      tname = m.tableName;
+      if (m.aliasName) {
+        tname += ` as ${m.aliasName}`;
+      }
+    }
+    
+    if (this.aliasName) {
+      return this.orm.model(this.tableName, schema)
+                  .alias(this.aliasName)
+                  .join(tname, on, join_type);
+    }
+
+    return this.orm.model(this.tableName, schema).join(tname, on, join_type);
+  }
+
+  /**
+   * @param {object|string} m 通过this.relate获取的模型实例或直接指定表名的字符串。
+   * @param {string} on join条件。
+   * @param {stirng} schema 默认为null，表示默认的schema。
+   *
+   * */
+  innerJoin (m, on, schema) {
+    return this.join(m, on, 'INNER', schema);
+  }
+
+  /**
+   * @param {object|string} m 通过this.relate获取的模型实例或直接指定表名的字符串。
+   * @param {string} on join条件。
+   * @param {stirng} schema 默认为null，表示默认的schema。
+   *
+   * */
+  leftJoin (m, on, schema = null) {
+    return this.join(m, on, 'LEFT', schema);
+  }
+
+  /**
+   * @param {object|string} m 通过this.relate获取的模型实例或直接指定表名的字符串。
+   * @param {string} on join条件。
+   * @param {stirng} schema 默认为null，表示默认的schema。
+   *
+   * */
+  rightJoin (m, on, schema = null) {
+    return this.join(m, on, 'RIGHT', schema);
   }
 
   makeId (cint = 0) {
@@ -332,6 +405,11 @@ class pqmodel {
       let pt = '';
 
       for (let k in this.table.column) {
+
+        if (this.table.column[k].drop || this.table.column[k].ignore) {
+          continue;
+        }
+
         if (this.primaryKey === k) {
           sql += `${k} ${this.table.column[k].type} primary key,`;
         } else {
@@ -421,7 +499,22 @@ class pqmodel {
     }
 
     for (let k in this.table.column) {
+
       col = this.table.column[k];
+      
+      if (col.ignore) {
+        continue;
+      }
+
+      if (col.drop) {
+        try {
+          sql = `alter table ${curTableName} drop column if exists ${k}`;
+          await this.db.query(sql);
+        } catch (err) {
+        }
+        continue;
+      }
+
       if (col.oldName) {
         if (inf[k] === undefined && inf[col.oldName]) {
           await this.db.query(`alter table ${curTableName} rename ${col.oldName} to ${k}`);
@@ -473,20 +566,34 @@ class pqmodel {
         /**
          * 在涉及到隐含类型转换时，会自动转换，否则需要指定转换规则。
          * 比如遇到问题是字符串类型 => 时间 | 数字
-         * 但是目前测试varchar转换任何其他非字符串类型都会出问题，根本就不支持，
-         * 可能需要自己实现转换函数，目前本人对数据库了解还不够深入，暂时不清楚原因。
-         * 对于确实需要转换类型的情况，请自己实现转换程序，在设计数据库结构时，应该从一开始就考虑清楚。
-         * 如果要设计运行良好的，可扩展并且支持程序动态处理的系统，无论数据库功能多丰富，都考虑清楚再使用。
-         * 通常来说，基本的数据类型：数字、文本、二进制足够。
+         * 但是目前测试varchar转换任何其他非字符串类型都会出问题，根本就不支持，其using语法并不能解决问题。
         */
 
         sql = `alter table ${curTableName} alter ${k} type ${col.type}`;
 
-        /* if (inf[k].data_type === 'text' || inf[k].data_type.indexOf('character') >= 0) {
+        if (inf[k].data_type === 'text' || inf[k].data_type.indexOf('character') >= 0) {
           if (this.strings.indexOf(this._parseType(col.type)) < 0) {
-            sql += ` using ${k}::${col.type}`;
+            //sql += ` using ${k}::${col.type}`;
+            if (col.force) {
+              //强制更新，先创建临时表名，然后drop，最后改名。
+              sql = `alter table ${curTableName} drop column ${k}`;
+              await this.db.query(sql);
+              
+              sql = `alter table ${curTableName} add ${k} ${col.type}`;
+              if (col.default) {
+                sql += ` not null default $$${col.default}$$`;
+              }
+
+              await this.db.query(sql);
+
+              continue;
+
+            } else {
+              console.error(` -- ${k} ${col.type} 从字符串类型转向其他类型无转换规则，或者设置force选项强制操作。`);
+            }
+
           }
-        } */
+        }
 
         if (debug) {
           console.log(sql);
@@ -520,6 +627,24 @@ class pqmodel {
   }
 
   async _checkIndex (indname, debug = false) {
+
+    let indsplit = indname.split(',').filter(p => p.length > 0);
+
+    let tmp = null;
+    for (let i = 0; i < indsplit.length; i++) {
+      
+      tmp = this.table.column[ indsplit[i] ];
+
+      if (tmp === undefined || tmp.drop || tmp.ignore) {
+        
+        if (debug) {
+          console.error( ` -- Ignore index ${indname} -- set ignore or drop or it is undefined.` );
+        }
+
+        return false;
+      }
+
+    }
 
     let indtext = indname;
 
@@ -611,23 +736,6 @@ class pqmodel {
     let indname = '';
     let indchk = null;
 
-    let checkIndexField = (iname) => {
-      if (iname.indexOf(',') > 0) {
-        iname = iname.split(',').filter(p => p.length > 0);
-      } else {
-        iname = [iname];
-      }
-
-      for (let i = 0; i < iname.length; i++) {
-        if (this.table.column[ iname[i].trim() ] === undefined) {
-          console.error(`-- ${iname[i]} ： 没有此字段，无法创建索引。`);
-          return false;
-        }
-      }
-
-      return true;
-    };
-
     for (let i = 0; i < this.table.unique.length; i++) {
 
       indname = this.table.unique[i];
@@ -636,10 +744,6 @@ class pqmodel {
         && (this.table.removeIndex instanceof Array)
         && this.table.removeIndex.indexOf(indname) >= 0)
       {
-        continue;
-      }
-
-      if (checkIndexField(indname) === false) {
         continue;
       }
 
