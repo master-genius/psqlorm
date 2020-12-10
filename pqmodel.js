@@ -1,5 +1,31 @@
 'use strict';
 
+let saltArr = [
+  'a','b','c','d','e','f','g',
+  'h','i','j','k','l','m','n',
+  'o','p','q','r','s','t','u',
+  'v','w','x','y','z','1','2',
+  '3','4','5','6','7','8','9'
+];
+
+function randstring (length = 8) {
+
+  let saltstr = '';
+  let ind = 0;
+
+  for(let i=0; i<length; i++) {
+    ind = parseInt( Math.random() * saltArr.length);
+    saltstr += saltArr[ ind ];
+  }
+
+  return saltstr;
+}
+
+function nrand (f, t) {
+  let discount = t - f;
+  return parseInt((Math.random() * discount) + f);
+}
+
 class pqmodel {
 
   constructor (pqorm = null) {
@@ -21,9 +47,9 @@ class pqmodel {
 
     this.lastError = null;
 
-    this.idCount = parseInt(Math.random() * 100) + 1;
-
     this.idPre = '';
+
+    this.idLen = 12;
 
     this.pagesize = 20;
 
@@ -105,7 +131,6 @@ class pqmodel {
     return this.orm.model(this.tableName, schema);
   }
 
-
   /**
    * 
    * @param {string} name
@@ -176,28 +201,37 @@ class pqmodel {
     return this.join(m, on, 'RIGHT', schema);
   }
 
-  makeId (cint = 0) {
-    let tm = Date.now() * (parseInt(Math.random() * 4) + 1) + 1010101010111;
+  makeId () {
+    let tm = Date.now()
 
-    let rand = parseInt( (Math.random() * 10240) + 11111 );
+    tm = (tm * nrand(10, 1111)) ^ nrand(100000, 999999999);
   
-    let id = `${tm.toString(16)}${rand.toString(16)}`;
-  
-    if (cint > 0) {
-      id += `${cint.toString(16)}`;
+    if (tm < 0) {
+      tm = -tm;
     }
   
-    return `${this.idPre}${id}`;
+    let tmstr = tm.toString(16);
+  
+    if (tmstr.length < this.idLen) {
+      tmstr = `${tmstr}${randstring(this.idLen - tmstr.length)}`;
+    }
+  
+    if (tmstr.length > this.idLen) {
+      tmstr = tmstr.substring(tmstr.length - this.idLen);
+    }
+
+    if (this.idPre) {
+      return `${this.idPre}${tmstr}`;
+    }
+
+    return tmstr;
+
   }
 
   async insert (data) {
-    this.idCount += 1;
-    if (this.idCount > 1001) {
-      this.idCount = 1;
-    }
 
     if (data[this.primaryKey] === undefined && this.autoId) {
-      data[this.primaryKey] = this.makeId(this.idCount + 1011);
+      data[this.primaryKey] = this.makeId();
     }
 
     let r = await this.model().insert(data);
