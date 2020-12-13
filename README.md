@@ -104,6 +104,39 @@ const pqorm = new psqlorm(pgdb);
 
 ```
 
+## 返回值
+
+对于 insert、insertAll、update、delete操作，其返回值就是pg扩展的返回值，通常要使用rowCount属性来确定所影响的行数，使用rows来获取查询结果。具体可以参考pg扩展的文档
+
+<a href="https://node-postgres.com/" target=_blank>pg doc</a>
+
+如果你不想再去查看文档，这里给出最简单直接的示例：
+
+``` JavaScript
+
+async function getUserById (id) {
+  let r = await pqorm.model('user').where('id=?', [id]).select()
+  //返回的数据结果数为0,这里使用<=来作为没有查询到。
+  if (r.rowCount <= 0) {
+    return null
+  }
+  return r.rows[0]
+}
+
+/**
+  @param {string} id
+  @param {object} data
+*/
+async function updateUserInfo (id, data) {
+  let r = await pqorm.model('user').where({id : id}).update(data)
+  if (r.rowCount <= 0) {
+    return false
+  }
+  return true
+}
+
+```
+
 ## 插入数据
 
 ``` JavaScript
@@ -318,7 +351,7 @@ const pqorm = new psqlorm(pgdb);
 
 ### 事务运行的返回值
 
-transaction不会抛出异常，相反，它会捕获你异常并设定相关数据并返回。
+transaction不会抛出异常，相反，它会捕获异常然后设定相关数据并返回。
 
 返回值是一个对象，三个属性ok、result、errmsg :
 
