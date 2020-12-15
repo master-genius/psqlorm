@@ -371,3 +371,173 @@ transaction不会抛出异常，相反，它会捕获异常然后设定相关数
     errmsg : ''
 }
 ```
+
+----
+> 以下是更高一层ORM实现，但是对Postgres的类型支持有限，仅支持常用的数字、字符串、bytea、时间戳类型。
+
+> 对于不支持的类型，仍然可以创建并使用，只是在自动更新表结构时，对类型的处理会忽略。
+
+> 这部分功能是稳定的，只是因为支持不够健全，所以不作为正式发布的部分，仅仅提供核心部分的描述。
+----
+
+对于所有的以上提到的接口，都有同名的实现，只是参数不同：
+
+| 接口 | 参数 | 说明 |
+| --- | ---- | ---- |
+| model (schema = null) | 可以指定schema | 返回模型实例 |
+| alias (name) | 字符串 | 表别名 |
+| get (cond) | object | 条件 |
+| insert (data) | object | 要插入的数据 |
+| insertAll (data) | Array[object] | 插入的数据数组 |
+| update (cond, data) |  | 更新 |
+| delete (cond) |  | 删除 |
+| transaction (callback) |  | 事务，和之前的接口一致。 |
+| innerJoin(m, on, schema = null) | m可以是字符串表示表名也可以是另一个模型实例 | INNER JOIN |
+| leftJoin(m, on, schema = null) | on是join条件 | LEFT JOIN |
+| rightJoin(m, on, schema = null) | schema可以设置数据库schema | RIGHT JOIN |
+| makeId () |  | 生成唯一ID。 |
+| list (cond, args) | args是object，支持属性：pagesize，order，offset，selectField。皆有默认值 | 查询列表，默认使用this.selectField作为选取的列，可以使用属性selectField指定。 |
+| count (cond) |  | 统计 |
+| avg (cond) |  | 均值 |
+| max (cond) |  | 最大值 |
+| min (cond) |  | 最小值 |
+| sum (cond) |  | 求和 |
+| Sync (debug = false) | 是否调试，会输出相关信息 | 同步表 |
+| CreateSchema (schema) | 字符串 | 创建schema |
+
+表属性：
+
+**table**
+
+object类型，描述表的字段，示例：
+
+```
+this.table = {
+  column : {
+    id : {
+      type : 'varchar(16)'
+    },
+
+    username : {
+      type : 'varchar(40)'
+    },
+
+    passwd : {
+      type : 'varchar(200)',
+    },
+
+    role : {
+      type : 'varchar(12)'
+      default : 'user'
+    },
+
+    mobile : {
+      type : 'varchar(14)',
+      default : ''
+    },
+
+    mobile_verify : {
+      type : 'boolean',
+      default : 'f'
+    }
+
+    age : {
+      type : 'smallint',
+      default : 0
+    }
+  },
+
+  //要创建索引的字段
+  index : [
+    'role',
+    'mobile'
+  ],
+
+  //唯一索引
+  unique : [
+    'username'
+  ]
+
+}
+```
+
+**primaryKey**
+
+主键ID的字段名称，默认为id。
+
+**idPre**
+
+指定id的前缀，默认为空字符串。
+
+**idLen**
+
+指定id的长度，默认为12个字符串，makeId生成会依据此设置。
+
+当更改表结构，需要调用Sync来自动同步数据库。
+
+**tableName**
+
+必须指定的字段，表示数据库表的名字。
+
+**完整的使用示例**
+
+以下代码完成后，基本的增删改查，统计、求值从、事务等处理就直接可用了。
+
+``` JavaScript
+
+'use strict';
+
+const pqmodel = require('psqlorm').Model;
+
+class data_great extends pqmodel {
+
+  constructor(pqorm) {
+    
+    //必须写
+    super(pqorm);
+
+    //主键id前缀，建议不要超过2字符，或者要把主键id字符长度上限设置为24+
+    this.idPre = '';
+    
+    //默认主键名为id，并且是字符串类型，默认禁止使用自增序列，如果确实需要使用，请调整你的想法或需求
+    //this.primaryKey = 'id';
+
+    //需要替换成数据表真正的名称
+
+    this.tableName = 'data_great';
+
+    this.table = {
+      column : {
+        id : {
+          type : 'varchar(16)',
+        },
+
+        data_id : {
+          type : 'varchar(16)',
+        },
+
+        user_id : {
+          type : 'varchar(16)',
+        },
+
+        add_time : {
+          type : 'bigint'
+        },
+      },
+
+      index  : [
+        'data_id',
+        'user_id'
+      ],
+      unique : [
+        'data_id,user_id'
+      ]
+    };
+
+  }
+
+}
+
+module.exports = data_great;
+
+```
