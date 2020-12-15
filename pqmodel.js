@@ -177,7 +177,7 @@ class pqmodel {
    * @param {stirng} schema 默认为null，表示默认的schema。
    *
    * */
-  innerJoin (m, on, schema) {
+  innerJoin (m, on, schema = null) {
     return this.join(m, on, 'INNER', schema);
   }
 
@@ -247,22 +247,28 @@ class pqmodel {
     if (!(data instanceof Array)) {
       return false;
     }
+    
     let idlist = [];
+
     if (this.autoId) {
       for (let i=0; i < data.length; i++) {
         if (data[i][this.primaryKey] === undefined) {
-          data[i].id = this.makeId(i+1000);
+          data[i].id = this.makeId();
         }
+
         idlist.push(data[i].id);
+
       }
     }
 
     let r = await this.model().insertAll(data);
     if (r.rowCount <= 0) {
       return false;
+    } else if (!this.autoId) {
+      return r.rowCount;
     }
 
-    return idlist || r.rowCount;
+    return idlist;
   }
 
   async update (cond, data) {
