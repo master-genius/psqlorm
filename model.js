@@ -315,7 +315,7 @@ class model {
 
   async count () {
     let r = await this.select('COUNT(*) as total');
-    return r.rows[0].total;
+    return parseInt(r.rows[0].total);
   }
 
   async avg (field) {
@@ -334,8 +334,8 @@ class model {
   }
 
   async sum (field) {
-    let r = await this.select(`sum(${field}) as sum`);
-    return r.rows[0].sum;
+    let r = await this.select(`sum(${field}) as sum_value`);
+    return r.rows[0].sum_value;
   }
 
   async transaction (callback) {
