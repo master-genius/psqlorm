@@ -328,6 +328,31 @@ class pqmodel {
     return await this.model().where(cond).sum(fields);
   }
 
+  /**
+   * 
+   * @param {string} gby 
+   * @param {string} fields 
+   * @param {object} cond 
+   * 
+   */
+  async group (gby, fields = null, cond = {}) {
+    
+    if (typeof fields === 'object') {
+      cond = fields;
+      fields = null;
+    }
+
+    let r = await this.model().where(cond)
+                              .group(gby)
+                              .select(fields || this.selectField);
+    
+    if (r.rowCount > 0) {
+      return r.rows;
+    }
+
+    return [];
+  }
+
   async transaction (callback, schema = '') {
     
     /* if (typeof callback !== 'function' || callback.constructor.name !== 'AsyncFunction') {

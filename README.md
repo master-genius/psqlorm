@@ -310,7 +310,34 @@ const pqorm = new psqlorm(pgdb)
                           .order('age DESC,high ASC')
                           .limit(10, 5); //从第5条开始返回10条。
 
-  console.log(ulist)
+  console.log(ulist.rows)
+
+});
+
+```
+
+## group
+
+使用group用于对结果集合进行合并，比如，要计算总金额并根据每个用户的ID进行统计：
+
+```javascript
+
+const pqorm = new psqlorm(pgdb)
+
+;(async () => {
+
+  let cond = {
+    order_status : 1,
+  }
+  
+  //group指定的字段在select中必须出现。
+  
+  let r = await pqorm.model('order')
+                          .where(cond)
+                          .group('user_id')
+                          .select('user_id,SUM(order_amount) as total_amount')
+
+  console.log(r.rows)
 
 });
 
@@ -406,6 +433,7 @@ transaction不会抛出异常，相反，它会捕获异常然后设定相关数
 | max (cond) |  | 最大值 |
 | min (cond) |  | 最小值 |
 | sum (cond) |  | 求和 |
+| group(group_field, fields, condition) | 依次为用于分组的字段、要选取的列、条件 | fields为 , 连接的字符串，可以忽略fields，第二个参数传递cond。 |
 | Sync (debug = false) | 是否调试，会输出相关信息 | 同步表 |
 | CreateSchema (schema) | 字符串 | 创建schema |
 
