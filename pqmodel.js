@@ -61,6 +61,7 @@ class pqmodel {
       'decimal':    'numeric',
       'numeric':    'numeric',
       'integer':    'integer',
+      'int'    :    'integer',
       'smallint':   'smallint',
       'bigint':     'bigint',
       
