@@ -77,7 +77,7 @@ class pqmodel {
     };
 
     this.numerics = [
-      'smallint','bigint','integer','decimal','numeric'
+      'smallint','bigint','integer','decimal','numeric', 'int'
     ];
 
     this.strings = [
