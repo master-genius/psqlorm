@@ -74,14 +74,8 @@ class model {
   }
 
   qoute (a) {
-    /* if (!isNaN(a)) {
+    if (typeof a === 'number') {
       return a;
-    } */
-    if (typeof a !== 'string') {
-      return a;
-    }
-    if (a[0] === '@') {
-      return a.substring(1);
     }
 
     return `$$${a}$$`;
@@ -302,12 +296,20 @@ class model {
   async update (data) {
     this.sqlUnit.command = 'UPDATE';
     if (typeof data === 'string') {
-      this.sqlUnit.values = data;  
+      this.sqlUnit.values = data;
     } else {
       let vals = [];
+
       for (let k in data) {
+
+        if (k[0] === '@') {
+          vals.push(`${k.substring(1)}=${data[k]}`);
+          continue;
+        }
+
         vals.push(`${k}=${this.qoute(data[k])}`);
       }
+
       this.sqlUnit.values = `${vals.join(',')}`;
     }
     return this.exec();
