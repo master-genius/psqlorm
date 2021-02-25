@@ -69,7 +69,7 @@ pqorm.prototype.transaction = async function (callback, schema = '') {
 };
 
 pqorm.prototype.end = function () {
-  pqorm.db.end();
+  this.db.end();
 };
 
 pqorm.Model = pqmodel;
