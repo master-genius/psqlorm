@@ -203,15 +203,8 @@ class pqmodel {
   }
 
   makeId () {
-    let tm = Date.now()
-
-    tm = (tm * nrand(10, 1111)) ^ nrand(100000, 999999999);
-  
-    if (tm < 0) {
-      tm = -tm;
-    }
-  
-    let tmstr = tm.toString(16);
+    
+    let tmstr = Math.random().toString(16).substring(2);
   
     if (tmstr.length < this.idLen) {
       tmstr = `${tmstr}${randstring(this.idLen - tmstr.length)}`;
