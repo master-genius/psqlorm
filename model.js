@@ -189,7 +189,12 @@ class model {
   }
 
   limit (count, offset = 0) {
-    this.sqlUnit.limit = `LIMIT ${count} OFFSET ${offset}`;
+    if (count <= 0) {
+      this.sqlUnit.limit = `OFFSET ${offset}`;
+    } else {
+      this.sqlUnit.limit = `LIMIT ${count} OFFSET ${offset}`;
+    }
+
     return this;
   }
 
