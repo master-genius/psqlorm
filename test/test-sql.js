@@ -14,7 +14,7 @@ var m = new porm(db);
             .where('age > ? AND role ILIKE ?', [29, '%user%'])
             .where({username : {ILIKE : '%brave%'}})
             .where('(points > ? OR points < ?)', [500, 200])
-            .limit(20, 2)
+            .limit(0, 2)
             .select();
 
   console.log(r);
