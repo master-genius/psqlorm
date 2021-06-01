@@ -51,7 +51,7 @@ class pqmodel {
 
     this.idLen = 12;
 
-    this.pagesize = 20;
+    this.pagesize = 60;
 
     this.dataTypeMap = {
       'varchar':    'character varying',
@@ -270,12 +270,16 @@ class pqmodel {
     return r.rowCount;
   }
 
-  async list (cond, args = {pagesize:20, offset:0, order: ''}) {
+  async list (cond, args = {}) {
+
     let t = this.model().where(cond);
-    if (args.pagesize && args.offset !== undefined) {
-      t = t.limit(args.pagesize, args.offset);
+
+    let offset = args.offset || 0;
+
+    if (args.pagesize !== undefined) {
+      t = t.limit(args.pagesize, offset);
     } else {
-      t = t.limit(this.pagesize, 0);
+      t = t.limit(this.pagesize, offset);
     }
     
     if (args.order) {
