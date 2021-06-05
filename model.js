@@ -114,13 +114,10 @@ class model {
         carr = condarr = null;
       }
 
-      //for (let i=0; i<args.length; i++) {
-      //  cond = cond.replace('?', `${this.qoute2(args[i])}`);
-      //}
-
-      if (this.sqlUnit.where.length > 0) {
+      if (this.sqlUnit.where.length > 0 && whstr.length > 0) {
         this.sqlUnit.where += ' AND ';
       }
+
       this.sqlUnit.where += whstr;
 
     } else if (typeof cond === 'object') {
@@ -128,10 +125,15 @@ class model {
       let t = null;
       let vals = [];
       for (let k in cond) {
-        
+
+        if (k[0] === '[' && k.length > 1) {
+          this.where(k.substring(1, k.length-1), cond[k]);
+          continue;
+        }
+
         if (cond[k] instanceof Array) {
           vals = [];
-          for (let i=0; i<cond[k].length; i++) {
+          for (let i = 0; i < cond[k].length; i++) {
             vals.push(this.qoute(cond[k][i]));
           }
           tmp.push(`${k} IN (${vals.join(',')})`);
