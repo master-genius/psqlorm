@@ -23,7 +23,7 @@ var m = new porm(db);
           .fetch()
           .where({role: 'user', id : ['qwe','123','wee12','233e']})
           .update({
-            points : '@points+5',
+            '@points' : 'points+5',
             point_type : 'increase'
           });
   console.log(r);
@@ -38,9 +38,24 @@ var m = new porm(db);
               }
            })
           .update({
-            points : '@points+5',
+            '@points' : 'points+5',
             point_type : 'increase'
           });
+
+  console.log(r);
+
+  r = await m.model('special_limit')
+              .fetch()
+              .where({
+                '[special_name SIMILAR TO ? OR special_list SIMILAR TO ?]' : [
+                  '%计算机%|%数学%', '%计算机%|%数学%'
+                ],
+                'first_mask & 1' : {
+                  '!=' : 0
+                },
+                uncode : ['12345', '10086', '10085'],
+              })
+              .select();
 
   console.log(r);
 
