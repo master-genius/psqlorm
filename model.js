@@ -6,7 +6,10 @@ class model {
     this.db = db;
 
     this.tableName = tableName;
+
     this.schema = schema || 'public';
+
+    this._schema = this.schema;
 
     this.parent = myparent;
 
@@ -14,6 +17,7 @@ class model {
     this._freeLock = false;
 
     this.fetchSql = false;
+
     this.sqlUnit = {
       command : '',
       values : '',
@@ -26,6 +30,7 @@ class model {
       join : '',
       group: ''
     };
+    
     this.last = null;
   }
 
@@ -46,14 +51,17 @@ class model {
   model (tableName = '', schema = null) {
     if (typeof tableName === 'string' && tableName.length > 0) {
       this.tableName = tableName;
-      return this;
     }
 
-    if (schema !== null) {
+    if (schema) {
       this.schema = schema;
     }
 
     return this;
+  }
+
+  resetSchema () {
+    this.schema = this._schema;
   }
 
   alias (name) {

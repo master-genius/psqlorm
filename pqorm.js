@@ -4,6 +4,7 @@ const mo = require ('./model.js');
 const pqmodel = require('./pqmodel');
 
 var pqorm = function (db) {
+
   if (!(this instanceof pqorm)) {
     return new pqorm(db);
   }
@@ -32,12 +33,17 @@ var pqorm = function (db) {
   this.getm = (tablename, schema) => {
     if (self.pool.length > 0) {
       let t = self.pool.pop();
+      
       t.odb = t.db = self.db;
       t.tableName = tablename;
-      t.schema = schema;
+      t.schema = t._schema = schema;
       t.fetchSql = false;
+      t._freeLock = false;
+      t.parent = self;
+
       return t;
     }
+
     return null;
   };
 
@@ -50,6 +56,7 @@ pqorm.prototype.setSchema = function (name) {
 pqorm.prototype.model = function (tablename, schema = '') {
 
   let mdb = this.getm(tablename, schema || this.schema);
+
   if (mdb) {
     return mdb;
   }

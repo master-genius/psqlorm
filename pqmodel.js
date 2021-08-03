@@ -146,11 +146,11 @@ class pqmodel {
    * @param {object|string} m 通过this.relate获取的模型实例或直接指定表名的字符串。
    * @param {string} on join条件。
    * @param {string} join_type 默认INNER。
-   * @param {stirng} schema 默认为null，表示默认的schema。
+   * @param {stirng} options 默认为{}，选项，支持where、schema、pagesize、offset、order。
    *
    * */
 
-  join (m, on, join_type = 'INNER', schema = null) {
+  async join (m, on, join_type = 'INNER', options = {}) {
     
     let tname;
 
@@ -163,43 +163,41 @@ class pqmodel {
       }
     }
     
-    if (this.aliasName) {
-      return this.orm.model(this.tableName, schema)
-                  .alias(this.aliasName)
-                  .join(tname, on, join_type);
-    }
+    let tj = this.orm.model(this.tableName, options.schema || null);
 
-    return this.orm.model(this.tableName, schema).join(tname, on, join_type);
+    this.aliasName && (tj = tj.alias(this.aliasName));
+
+    tj = await tj.join(tname, on, join_type)
+                    .where(options.where || {})
+                    .limit(
+                      options.pagesize !== undefined ? options.pagesize : this.pagesize, 
+                      options.offset || 0
+                    );
+
+    options.order && (tj = tj.order(options.order));
+
+    let r = await tj.select(options.selectField || this.selectField);
+
+    return r.rows;
   }
 
   /**
    * @param {object|string} m 通过this.relate获取的模型实例或直接指定表名的字符串。
    * @param {string} on join条件。
-   * @param {stirng} schema 默认为null，表示默认的schema。
+   * @param {stirng} options 默认为{}，选项，支持where、schema、pagesize、offset、order。
    *
    * */
-  innerJoin (m, on, schema = null) {
-    return this.join(m, on, 'INNER', schema);
+
+  innerJoin (m, on, options = {}) {
+    return this.join(m, on, 'INNER', options);
   }
 
-  /**
-   * @param {object|string} m 通过this.relate获取的模型实例或直接指定表名的字符串。
-   * @param {string} on join条件。
-   * @param {stirng} schema 默认为null，表示默认的schema。
-   *
-   * */
-  leftJoin (m, on, schema = null) {
-    return this.join(m, on, 'LEFT', schema);
+  leftJoin (m, on, options = {}) {
+    return this.join(m, on, 'LEFT', options);
   }
 
-  /**
-   * @param {object|string} m 通过this.relate获取的模型实例或直接指定表名的字符串。
-   * @param {string} on join条件。
-   * @param {stirng} schema 默认为null，表示默认的schema。
-   *
-   * */
-  rightJoin (m, on, schema = null) {
-    return this.join(m, on, 'RIGHT', schema);
+  rightJoin (m, on, options = {}) {
+    return this.join(m, on, 'RIGHT', options);
   }
 
   makeId () {
@@ -222,13 +220,18 @@ class pqmodel {
 
   }
 
-  async insert (data) {
+  /**
+   * 在动态支持schema的参数设计上，一旦参数超过3个则会把后面的参数以object的形式提供，减少参数传递复杂度。
+   * 否则最后一个参数是schema，默认是null。
+   */
+
+  async insert (data, schema = null) {
 
     if (data[this.primaryKey] === undefined && this.autoId) {
       data[this.primaryKey] = this.makeId();
     }
 
-    let r = await this.model().insert(data);
+    let r = await this.model(schema).insert(data);
 
     if (r.rowCount <= 0) {
       return false;
@@ -237,7 +240,7 @@ class pqmodel {
     return data[this.primaryKey];
   }
 
-  async insertAll (data) {
+  async insertAll (data, schema = null) {
     if (!(data instanceof Array)) {
       return false;
     }
@@ -255,7 +258,8 @@ class pqmodel {
       }
     }
 
-    let r = await this.model().insertAll(data);
+    let r = await this.model(schema).insertAll(data);
+
     if (r.rowCount <= 0) {
       return false;
     } else if (!this.autoId) {
@@ -265,14 +269,14 @@ class pqmodel {
     return idlist;
   }
 
-  async update (cond, data) {
-    let r = await this.model().where(cond).update(data);
+  async update (cond, data, schema = null) {
+    let r = await this.model(schema).where(cond).update(data);
     return r.rowCount;
   }
 
-  async list (cond, args = {}) {
+  async list (cond, args = {}, schema = null) {
 
-    let t = this.model().where(cond);
+    let t = this.model(schema).where(cond);
 
     let offset = args.offset || 0;
 
@@ -292,57 +296,54 @@ class pqmodel {
 
   }
 
-  async get (cond, fields = null) {
-    let r = await this.model().where(cond).select(fields || this.selectField);
+  async get (cond, fields = null, schema = null) {
+    let r = await this.model(schema)
+                      .where(cond)
+                      .select(fields || this.selectField);
+
     if (r.rowCount <= 0) {
       return null;
     }
     return r.rows[0];
   }
 
-  async delete (cond) {
-    let r = await this.model().where(cond).delete();
+  async delete (cond, schema = null) {
+    let r = await this.model(schema).where(cond).delete();
     return r.rowCount;
   }
 
-  async count (cond = {}) {
-    let total = await this.model().where(cond).count();
+  async count (cond = {}, schema = null) {
+    let total = await this.model(schema).where(cond).count();
     return total;
   }
 
-  async max (cond = {}, fields) {
-    return await this.model().where(cond).max(fields);
+  async max (cond = {}, fields, schema = null) {
+    return await this.model(schema).where(cond).max(fields);
   }
 
-  async min (cond = {}, fields) {
-    return await this.model().where(cond).min(fields);
+  async min (cond = {}, fields, schema = null) {
+    return await this.model(schema).where(cond).min(fields);
   }
 
-  async avg (cond = {}, fields) {
-    return await this.model().where(cond).avg(fields);
+  async avg (cond = {}, fields, schema = null) {
+    return await this.model(schema).where(cond).avg(fields);
   }
 
-  async sum (cond = {}, fields) {
-    return await this.model().where(cond).sum(fields);
+  async sum (cond = {}, fields, schema = null) {
+    return await this.model(schema).where(cond).sum(fields);
   }
 
   /**
    * 
    * @param {string} gby 
-   * @param {string} fields 
-   * @param {object} cond 
+   * @param {object} options
    * 
    */
-  async group (gby, fields = null, cond = {}) {
-    
-    if (typeof fields === 'object') {
-      cond = fields;
-      fields = null;
-    }
+  async group (gby, options = {}) {
 
-    let r = await this.model().where(cond)
+    let r = await this.model(options.schema || null).where(options.where || {})
                               .group(gby)
-                              .select(fields || this.selectField);
+                              .select(options.selectField || this.selectField);
     
     if (r.rowCount > 0) {
       return r.rows;
@@ -352,34 +353,27 @@ class pqmodel {
   }
 
   async transaction (callback, schema = '') {
-    
-    /* if (typeof callback !== 'function' || callback.constructor.name !== 'AsyncFunction') {
-      throw new Error('callback must be async function');
-    } */
 
-    //let self = this;
+    if (typeof callback !== 'function' || callback.constructor.name !== 'AsyncFunction') {
+      throw new Error(`callback must be async function`);
+    }
 
-    return this.orm.transaction(callback, schema);
-
-    /* return await this.orm.transaction(async (db) => {
+    return await this.orm.transaction(async (db) => {
       let ret = {
         failed: false,
         errmsg : ''
       };
 
       //只有db才是事物安全的，可以保证原子操作。
-      //在model中，db已经被锁定到this.db，所以这里也要进行这样的操作，用来保证使用当前的get、insert等方法仍然是原子操作。
       try {
-        await callback(db, self, ret);
+        await callback(db, ret);
       } catch (err) {
         ret.failed = true;
         ret.errmsg = err.message;
-      } finally {
-        this.db = this.odb;
       }
 
       return ret;
-    }, schema); */
+    }, schema);
 
   }
 
@@ -886,15 +880,15 @@ class pqmodel {
   _parseType (t) {
     let br = t.indexOf('(');
     if (br > 0) {
-      return t.substring(0,br);
+      return t.substring(0,br).trim();
     }
     
     br = t.indexOf('[');
     if (br > 0) {
-      return t.substring(0,br);
+      return t.substring(0,br).trim();
     }
 
-    return t;
+    return t.trim();
   }
 
   _parseBrackets (t) {
@@ -902,7 +896,7 @@ class pqmodel {
     if (ind < 0) {
       return '';
     }
-    return t.substring(ind);
+    return t.substring(ind).trim();
   }
 
   _realType (t) {
