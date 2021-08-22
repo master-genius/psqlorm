@@ -2,6 +2,7 @@
 
 const mo = require ('./model.js');
 const pqmodel = require('./pqmodel');
+const pg = require('pg');
 
 var pqorm = function (db) {
 
@@ -79,6 +80,11 @@ pqorm.prototype.end = function () {
   this.db.end();
 };
 
+pqorm.initORM = (config) => {
+  return new pqorm(new pg.Pool(config));
+};
+
 pqorm.Model = pqmodel;
 
 module.exports = pqorm;
+

@@ -13,14 +13,14 @@ Node.js环境有一个使用非常广泛的PostgreSQL数据库扩展：pg。pg�
 ## 安装
 
 ```
-//目前你还是需要安装手动安装pg
-npm i pg
 
 npm i psqlorm
 
 ```
 
 ## 初始化和简单查询
+
+这是比较原始的方式，但是这种方式是一直被支持的，更方便的方式就是对这些操作的封装。
 
 ``` JavaScript
 
@@ -51,9 +51,11 @@ const pqorm = new psqlorm(pgdb);
 
 ```
 
+更进一步，下面的代码展示了如何封装一个函数。
+
 ## 封装初始化函数
 
-``` JavaScript
+```javascript
 
 /**
  * dbconfig : {
@@ -73,6 +75,28 @@ function initpgorm (dbconfig) {
 }
 
 ```
+
+## 使用 initORM 初始化
+
+```javascript
+
+const initORM = require('psqlorm').initORM
+
+let dbconfig = {
+  host: '127.0.0.1',
+  user: 'xxxxx',
+  database : 'DBNAME',
+  port: 5432,
+  password: 'PASSWORD',
+  max: 10
+}
+
+let pqorm = initORM(dbconfig)
+
+//...
+
+```
+
 
 ## 复杂查询
 
