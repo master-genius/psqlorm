@@ -62,7 +62,6 @@ class ${name} extends pqmodel {
 }
 
 module.exports = ${name}
-
 `
   return mstr
 
