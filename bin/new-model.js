@@ -50,13 +50,12 @@ class ${name} extends pqmodel {
     //this.primaryKey = 'id'
 
     //数据表真正的名称。
-    this.tableName = ${name}
+    this.tableName = '${name}'
 
     this.table = _table
 
     //模型的名称，默认为文件名，在app.service.model中要通过此名字来作为key值。
-    //this.modelName = ${name}
-
+    //this.modelName = '${name}'
 
   }
 
@@ -83,7 +82,7 @@ for (let i = 2; i < process.argv.length; i++) {
   if (process.argv[i].indexOf('--mdir=') === 0) {
 
     let t = process.argv[i].substring( '--mdir='.length )
-    
+
     if (t.length > 0) {
       mdir = t
     }
