@@ -1,10 +1,13 @@
 {
   "name": "psqlorm",
-  "version": "5.0.1",
+  "version": "5.0.3",
   "description": "orm for pg",
   "main": "pqorm.js",
   "scripts": {
     "test": "echo ok"
+  },
+  "bin": {
+    "new-model" : "bin/new-model.js"
   },
   "repository": {
     "type": "git",
