@@ -378,7 +378,8 @@ class model {
       let cret = await callback(this);
       
       if ((cret && typeof cret === 'object' && cret.failed === true) || cret === false) {
-        throw new Error(cret.errmsg || 'Transaction failed.');
+        let errmsg = (cret && cret.errmsg) ? cret.errmsg : 'Transaction failed.';
+        throw new Error(errmsg);
       }
 
       await this.db.query('COMMIT');
@@ -386,7 +387,6 @@ class model {
       finalRet.result = cret;
 
     } catch (err) {
-      //console.error('--DEBUG--', err.message);
       this.db.query('ROLLBACK');
       finalRet.errmsg = err.message;
       finalRet.ok = false;

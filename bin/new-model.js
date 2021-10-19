@@ -46,7 +46,7 @@ class ${name} extends pqmodel {
     //id的长度，默认为12
     //this.idLen = 12
 
-    //默认主键名为id，并且是字符串类型，默认禁止使用自增序列，如果确实需要使用，请调整你的想法或需求。
+    //默认主键名为id，并且是字符串类型，主键id会自动生成。
     //this.primaryKey = 'id'
 
     //数据表真正的名称。
