@@ -20,7 +20,7 @@ npm i psqlorm
 
 ## 初始化和简单查询
 
-这是比较原始的方式，但是这种方式是一直被支持的，更方便的方式就是对这些操作的封装。
+这是比较原始的方式，但是这种方式是一直被支持的，更方便的方式就是对这些操作的封装。psqlorm需要一个已经初始化好的pg连接对象，在内部去通过pg执行sql。
 
 ``` JavaScript
 
@@ -76,6 +76,9 @@ function initpgorm (dbconfig) {
 
 ```
 
+这样的方式需要开发者去编写一个函数然后导出一个模块，为了能更方便，以下方式最好。
+
+
 ## 使用 initORM 初始化
 
 ```javascript
@@ -97,12 +100,14 @@ let pqorm = initORM(dbconfig)
 
 ```
 
+以上工作，通过initORM直接完成。
+
 
 ## 复杂查询
 
 ``` JavaScript
 
-const pqorm = new psqlorm(pgdb);
+let pqorm = initORM(dbconfig);
 
 ;(async () => {
 
@@ -161,7 +166,7 @@ async function updateUserInfo (id, data) {
 
 ``` JavaScript
 
-const pqorm = new psqlorm(pgdb);
+let pqorm = initORM(dbconfig);
 
 ;(async () => {
 
@@ -194,8 +199,7 @@ const pqorm = new psqlorm(pgdb);
 
 ``` JavaScript
 
-
-const pqorm = new psqlorm(pgdb);
+let pqorm = initORM(dbconfig);
 
 ;(async () => {
 
@@ -217,7 +221,7 @@ const pqorm = new psqlorm(pgdb);
 
 ``` JavaScript
 
-const pqorm = new psqlorm(pgdb);
+let pqorm = initORM(dbconfig);
 
 ;(async () => {
 
@@ -248,7 +252,7 @@ const pqorm = new psqlorm(pgdb);
 
 ``` JavaScript
 
-const pqorm = new psqlorm(pgdb);
+let pqorm = initORM(dbconfig);
 
 ;(async () => {
 
@@ -292,7 +296,7 @@ table是表名字，on是条件。
 
 ``` JavaScript
 
-const pqorm = new psqlorm(pgdb)
+let pqorm = initORM(dbconfig);
 
 ;(async () => {
 
@@ -317,7 +321,7 @@ order用于排序，limit限制查询条数并可以设定偏移量。limit第�
 
 ``` JavaScript
 
-const pqorm = new psqlorm(pgdb)
+let pqorm = initORM(dbconfig);
 
 ;(async () => {
 
@@ -342,7 +346,7 @@ const pqorm = new psqlorm(pgdb)
 
 ```javascript
 
-const pqorm = new psqlorm(pgdb)
+let pqorm = initORM(dbconfig);
 
 ;(async () => {
 
@@ -370,7 +374,7 @@ const pqorm = new psqlorm(pgdb)
 
 ``` JavaScript
 
-const pqorm = new psqlorm(pgdb);
+let pqorm = initORM(dbconfig);
 
 ;(async () => {
 
@@ -424,11 +428,15 @@ transaction不会抛出异常，相反，它会捕获异常然后设定相关数
 ```
 
 ----
-> 以下是更高一层ORM实现，但是对Postgres的类型支持有限，仅支持常用的数字、字符串、bytea、时间戳类型。
 
-> 对于不支持的类型，仍然可以创建并使用，只是在自动更新表结构时，对类型的处理会忽略。
+以下是更高一层ORM实现，但是对Postgres的类型支持有限，仅支持常用的类型：
 
-> 这部分功能是稳定的，只是因为支持不够健全，所以不作为正式发布的部分，仅仅提供核心部分的描述。
+> 数字（int、bigint、smallint、numeric）、字符串（text、char、varchar）、bytea、时间戳、jsonb。
+
+对于不支持的类型，仍然可以创建并使用，只是在自动更新表结构时，对类型的处理会忽略。
+
+这部分功能是稳定的，只是支持不够健全，psotgresql支持的类型和功能太多了···
+
 ----
 
 对于所有的以上提到的接口，都有同名的实现，只是参数不同：
@@ -513,6 +521,8 @@ this.table = {
 }
 ```
 
+你需要声明一个类继承自psqlorm.Model，类中的属性描述如下：
+
 **primaryKey**
 
 主键ID的字段名称，默认为id。
@@ -535,7 +545,7 @@ this.table = {
 
 指定新的名字，titbit-loader自动加载会识别此属性，并按照此名字设定值作为app.service.model上的属性而不是使用文件名，默认的会使用文件名。
 
-**完整的使用示例**
+### 完整的使用示例
 
 以下代码完成后，基本的增删改查，统计、求值从、事务等处理就直接可用了。
 
@@ -597,3 +607,5 @@ class data_great extends pqmodel {
 module.exports = data_great;
 
 ```
+
+仅仅是以上一个文件，就可以使用get、select、delete、insert、insertAll等接口。

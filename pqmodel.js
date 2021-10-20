@@ -70,6 +70,8 @@ class pqmodel {
       //二进制类型
       'bytea':      'bytea',
 
+      'jsonb': 'jsonb',
+
       'date':       'date',
       'time':       'time without time zone',
       'timestamp':  'timestamp without time zone',
@@ -520,6 +522,11 @@ class pqmodel {
       inf[r.rows[i].column_name] = r.rows[i];
     }
 
+    //若存在dropIndex但是不存在removeIndex则指向dropIndex
+    if (this.table.dropIndex && !(this.table.removeIndex)) {
+      this.table.removeIndex = this.table.dropIndex;
+    }
+
     await this._syncColumn(inf, curTableName, debug);
 
     await this._syncIndex(curTableName, debug);
@@ -743,6 +750,21 @@ class pqmodel {
     let indname = '';
     let indchk = null;
 
+    let checkColumn = (cname) => {
+      let nsplit = []
+      if (cname.indexOf(',') > 0) {
+        nsplit = cname.split(',').filter(p => p.length > 0);
+      } else {
+        nsplit.push(cname);
+      }
+
+      for (let n of nsplit) {
+        if (this.table.column[n] === undefined) return false;
+      }
+
+      return true;
+    }
+
     for (let i = 0; i < this.table.index.length; i++) {
       
       indname = this.table.index[i];
@@ -754,8 +776,8 @@ class pqmodel {
         continue;
       }
 
-      if (this.table.column[indname] === undefined ) {
-        console.error(`-- ${indname} ： 没有此字段，无法创建索引。`);
+      if (checkColumn(indname) === false) {
+        console.error(`-- ${indname} ： 没有此列或包含不存在的列，无法创建索引。`);
         continue;
       }
 
@@ -765,7 +787,12 @@ class pqmodel {
         continue;
       }
 
-      await this.db.query(`create index on ${curTableName} (${indname})`);
+      let ind_using = '';
+      if (this.table.column[indname] && this.table.column[indname].type.toLowerCase() === 'jsonb') {
+        ind_using = ' using gin';
+      }
+      
+      await this.db.query(`create index on ${curTableName} ${ind_using}(${indname})`);
 
     }
 
@@ -880,15 +907,15 @@ class pqmodel {
   _parseType (t) {
     let br = t.indexOf('(');
     if (br > 0) {
-      return t.substring(0,br).trim();
+      return t.substring(0,br).trim().toLowerCase();
     }
     
     br = t.indexOf('[');
     if (br > 0) {
-      return t.substring(0,br).trim();
+      return t.substring(0,br).trim().toLowerCase();
     }
 
-    return t.trim();
+    return t.trim().toLowerCase();
   }
 
   _parseBrackets (t) {
