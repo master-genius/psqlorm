@@ -54,9 +54,6 @@ class ${name} extends pqmodel {
 
     this.table = _table
 
-    //模型的名称，默认为文件名，在app.service.model中要通过此名字来作为key值。
-    //this.modelName = '${name}'
-
   }
 
 }
