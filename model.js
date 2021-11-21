@@ -1,3 +1,30 @@
+'use strict';
+
+/**
+ * 早晚有一天，需要更好的模块注入管理的方式，而不是全部抽离出npm包。
+ * 在目前，这还不是一个十分必要的需求，通过复制代码即可得到轻便并且没有任何外部依赖的功能。
+ */
+let saltArr = [
+  'a','b','c','d','e','f','g',
+  'h','i','j','k','l','m','n',
+  'o','p','q','r','s','t','u',
+  'v','w','x','y','z', '_', '_',
+  '_', 'x', 'x', 'o', 'o', 'i', 'i'
+];
+
+function randstring (length = 5) {
+
+  let saltstr = '';
+  let ind = 0;
+
+  for(let i=0; i<length; i++) {
+    ind = parseInt( Math.random() * saltArr.length);
+    saltstr += saltArr[ ind ];
+  }
+
+  return saltstr;
+}
+
 class model {
 
     //schema = '' default public
@@ -17,6 +44,10 @@ class model {
     this._freeLock = false;
 
     this.fetchSql = false;
+
+    this.stag = this.makeQuoteTag();
+
+    this.stag2 = this.makeQuoteTag(16 + parseInt(Math.random() * 9));
 
     this.sqlUnit = {
       command : '',
@@ -46,6 +77,10 @@ class model {
     this.sqlUnit.order = '';
     this.sqlUnit.group = '';
     this.last = null;
+  }
+
+  makeQuoteTag (len = 3) {
+    return '$_' + randstring(len) + '_$';
   }
 
   model (tableName = '', schema = null) {
@@ -85,11 +120,17 @@ class model {
     if (typeof a === 'number') {
       return a;
     }
+    //if (a.indexOf('$') < 0) return `$$${a}$$`;
 
-    return `$$${a}$$`;
+    if (a.indexOf(this.stag) < 0) return `${this.stag}${a}${this.stag}`;
+
+    this.stag = this.makeQuoteTag(5);
+
+    return (this.stag2 + a + this.stag2);
+    //return `${this.stag2}${a}${this.stag2}`;
   }
 
-  //在使用replace时，$被认为是格式化字符串标识，目前不需要。
+  //在使用replace时，$被认为是格式化字符串标识。
   /*
   qoute2 (a) {
     if (typeof a !== 'string') {
