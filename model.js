@@ -5,12 +5,10 @@
  * 在目前，这还不是一个十分必要的需求，通过复制代码即可得到轻便并且没有任何外部依赖的功能。
  */
 let saltArr = [
-  'a','b','c','d','e','f','g',
-  'h','i','j','k','l','m','n',
-  'o','p','q','r','s','t','u',
-  'v','w','x','y','z', '_', '_',
-  '_', 'x', 'x', 'o', 'o', 'i',
-  'i', '_', '_', '_', 'x', 'x',
+  'o', 'u', 'v', 'x', 'w', 'z', 
+  '_', '_', '_', 'x', 'x', 'o',
+  'o', 'i', 'i', 'p', 'y', '_',
+  'x', 'x', '_', 'q', 'o', '_'
 ];
 
 function randstring (length = 5) {
@@ -45,7 +43,7 @@ class model {
 
     this.fetchSql = false;
 
-    this.stag = this.makeQuoteTag(3 + parseInt(Math.random() * 3));
+    this.stag = this.makeQuoteTag(6 + parseInt(Math.random() * 3));
 
     this.lstag = this.stag.substring(0, this.stag.length - 1);
 
