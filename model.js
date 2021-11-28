@@ -9,7 +9,8 @@ let saltArr = [
   'h','i','j','k','l','m','n',
   'o','p','q','r','s','t','u',
   'v','w','x','y','z', '_', '_',
-  '_', 'x', 'x', 'o', 'o', 'i', 'i'
+  '_', 'x', 'x', 'o', 'o', 'i',
+  'i', '_', '_', '_', 'x', 'x',
 ];
 
 function randstring (length = 5) {
@@ -27,7 +28,6 @@ function randstring (length = 5) {
 
 class model {
 
-    //schema = '' default public
   constructor (db, tableName = '', schema = 'public', myparent = null) {
     this.odb = db;
     this.db = db;
@@ -45,9 +45,9 @@ class model {
 
     this.fetchSql = false;
 
-    this.stag = this.makeQuoteTag();
+    this.stag = this.makeQuoteTag(3 + parseInt(Math.random() * 3));
 
-    this.stag2 = this.makeQuoteTag(16 + parseInt(Math.random() * 9));
+    this.lstag = this.stag.substring(0, this.stag.length - 1);
 
     this.sqlUnit = {
       command : '',
@@ -120,14 +120,12 @@ class model {
     if (typeof a === 'number') {
       return a;
     }
-    //if (a.indexOf('$') < 0) return `$$${a}$$`;
 
-    if (a.indexOf(this.stag) < 0) return `${this.stag}${a}${this.stag}`;
+    if (a.indexOf(this.lstag) >= 0) {
+      a = a.replaceAll(this.lstag, '');
+    }
 
-    this.stag = this.makeQuoteTag(5);
-
-    return (this.stag2 + a + this.stag2);
-    //return `${this.stag2}${a}${this.stag2}`;
+    return this.stag + a + this.stag;
   }
 
   //在使用replace时，$被认为是格式化字符串标识。

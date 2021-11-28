@@ -80,6 +80,12 @@ pqorm.prototype.end = function () {
   this.db.end();
 };
 
+pqorm.prototype.maxPool = function (n = null) {
+  if (n === null || typeof n !== 'number') return this.max;
+
+  this.max = n;
+};
+
 pqorm.initORM = (config) => {
   return new pqorm(new pg.Pool(config));
 };
