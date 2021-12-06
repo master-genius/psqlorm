@@ -242,6 +242,22 @@ class pqmodel {
     return data[this.primaryKey];
   }
 
+  async finsert (data, schema = null) {
+    if (this.beforeInsert && typeof this.beforeInsert === 'function') {
+      if (false === await this.beforeInsert(data, schema)) return false;
+    }
+
+    let id = await this.insert(data, schema);
+
+    if (!id) return false;
+
+    if (this.afterInsert && typeof this.afterInsert === 'function') {
+      this.afterInsert(data, schema);
+    }
+
+    return id;
+  }
+
   async insertAll (data, schema = null) {
     if (!(data instanceof Array)) {
       return false;
@@ -274,6 +290,22 @@ class pqmodel {
   async update (cond, data, schema = null) {
     let r = await this.model(schema).where(cond).update(data);
     return r.rowCount;
+  }
+
+  async fupdate (cond, data, schema = null) {
+    if (this.beforeUpdate && typeof this.beforeUpdate === 'function') {
+      if (false === await this.beforeUpdate(cond, data, schema)) return false;
+    }
+
+    let count = await this.update(cond, data, schema);
+
+    if (count <= 0) return 0;
+
+    if (this.afterUpdate && typeof this.afterUpdate === 'function') {
+      this.afterUpdate(cond, data, schema);
+    }
+
+    return count;
   }
 
   async list (cond, args = {}, schema = null) {
@@ -312,6 +344,22 @@ class pqmodel {
   async delete (cond, schema = null) {
     let r = await this.model(schema).where(cond).delete();
     return r.rowCount;
+  }
+
+  async fdelete (cond, schema = null) {
+    if (this.beforeDelete && typeof this.beforeDelete === 'function') {
+      if (false === await this.beforeDelete(cond, schema)) return false;
+    }
+
+    let count = await this.delete(cond, schema);
+
+    if (count <= 0) return 0;
+
+    if (this.afterDelete && typeof this.afterDelete === 'function') {
+      this.afterDelete(cond, schema);
+    }
+
+    return count;
   }
 
   async count (cond = {}, schema = null) {
