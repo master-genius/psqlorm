@@ -43,6 +43,8 @@ class pqmodel {
 
     this.aliasName = null;
 
+    this.relateName = null;
+
     this.primaryKey = 'id';
 
     this.lastError = null;
@@ -99,35 +101,55 @@ class pqmodel {
       'varchar', 'char', 'text', 'bytea', 'timestamp', 'timestampz', 'date', 'time'
     ];
 
+    if (!global.__psqlorm_relate__) global.__psqlorm_relate__ = {};
+
+    process.nextTick(async () => {
+      try {
+        await this.__init();
+      } catch (err) {
+        console.error(err);
+      }
+    });
+
   }
 
-  relateCache = {};
+  async __init () {
+    this.relate();
+
+    if (this.init && typeof this.init === 'function') {
+      setTimeout(async () => {
+        try {
+          await this.init();
+        } catch (err) {
+          console.error(err);
+        }
+      }, 100);
+    }
+    
+  }
 
   /**
    * 关联一个模型并返回，要求m必须是已经初始化好的。
    * 名称是必须要有的，后续会通过名称查询缓存。
    * 路径可以不传，此时如果name没有查询到，会返回null。
+   * 在能够找到更好方式之前，暂时使用global.__psqlorm_relate__来记录进而避免循环关联。
    */
 
-  relate (name, path = '') {
+  relate (name = '') {
+
+    let n = this.relateName || this.tableName;
+
+    if (!global.__psqlorm_relate__[n]) {
+      global.__psqlorm_relate__[n] = this;
+    }
+
+    if (!name) return null;
     
-    if (this.relateCache[name]) {
-      return this.relateCache[name];
+    if (global.__psqlorm_relate__[name]) {
+      return global.__psqlorm_relate__[name];
     }
 
-    if (!path) {
-      return null;
-    }
-
-    try {
-      let m = require(path);
-      this.relateCache[name] = new m(this.orm);
-      return this.relateCache[name];
-    } catch (err) {
-      console.error(err);
-      return null;
-    }
-
+    return null;
   }
 
   model (schema = null) {
