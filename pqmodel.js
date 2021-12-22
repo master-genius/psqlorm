@@ -497,7 +497,7 @@ class pqmodel {
     return await this.db.query(`create schema if not exists ${schema}`);
   }
 
-  async Sync (debug=false) {
+  async Sync (debug=false, force = false) {
 
     if (!this.table) {
       console.error('没有table对象');
@@ -597,7 +597,7 @@ class pqmodel {
       this.table.removeIndex = this.table.dropIndex;
     }
 
-    await this._syncColumn(inf, curTableName, debug);
+    await this._syncColumn(inf, curTableName, debug, force);
 
     await this._syncIndex(curTableName, debug);
 
@@ -621,7 +621,7 @@ class pqmodel {
      * 
      *    typeLock 为true表示不进行类型更新。
      */
-  async _syncColumn (inf, curTableName, debug = false) {
+  async _syncColumn (inf, curTableName, debug = false, force = false) {
     
     let pt = '';
     let real_type = '';
@@ -754,6 +754,15 @@ class pqmodel {
       if (col.notNull === undefined || col.notNull) {
         if (inf[k].is_nullable === 'YES') {
           await this.db.query(`alter table ${curTableName} alter column ${k} set not null`);
+        }
+      }
+    }
+
+    //force模式检测若有数据表字段，在程序中未定义，则直接删除。
+    if (force) {
+      for (let k in inf) {
+        if (!this.table.column[k]) {
+          await this.db.query(`alter table ${curTableName} drop column ${k}`);
         }
       }
     }
