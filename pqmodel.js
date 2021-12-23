@@ -281,7 +281,7 @@ class pqmodel {
   }
 
   async insertAll (data, schema = null) {
-    if (!(data instanceof Array)) {
+    if (!Array.isArray(data)) {
       return false;
     }
     
@@ -817,7 +817,7 @@ class pqmodel {
       return;
     }
 
-    if (!this.table.index || !(this.table.index instanceof Array) ) {
+    if (!this.table.index || !Array.isArray(this.table.index) ) {
       console.error('index 属性必须为数组类型，其中值为字符串');
       return;
     }
@@ -849,7 +849,7 @@ class pqmodel {
       indname = this.table.index[i];
 
       if (this.table.removeIndex !== undefined
-        && (this.table.removeIndex instanceof Array)
+        && Array.isArray(this.table.removeIndex)
         && this.table.removeIndex.indexOf(indname) >= 0)
       {
         continue;
@@ -883,7 +883,7 @@ class pqmodel {
       return;
     }
 
-    if (!this.table.unique || !(this.table.unique instanceof Array) ) {
+    if (!this.table.unique || !Array.isArray(this.table.unique) ) {
       console.error('unique 属性必须为数组类型，其中值为字符串');
       return;
     }
@@ -892,7 +892,7 @@ class pqmodel {
       console.log('-- checking unique index...');
     }
 
-    if (!this.table.unique || !(this.table.unique instanceof Array) ) {
+    if (!this.table.unique || !Array.isArray(this.table.unique) ) {
       return;
     }
 
@@ -904,7 +904,7 @@ class pqmodel {
       indname = this.table.unique[i];
 
       if (this.table.removeIndex !== undefined
-        && (this.table.removeIndex instanceof Array)
+        && Array.isArray(this.table.removeIndex)
         && this.table.removeIndex.indexOf(indname) >= 0)
       {
         continue;
@@ -923,7 +923,7 @@ class pqmodel {
   }
 
   async _removeIndex (curTableName, debug = false) {
-    if (!this.table.removeIndex || !(this.table.removeIndex instanceof Array)) {
+    if (!this.table.removeIndex || !Array.isArray(this.table.removeIndex) ) {
       return false;
     }
 
