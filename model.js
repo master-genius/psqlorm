@@ -176,7 +176,7 @@ class model {
           continue;
         }
 
-        if (cond[k] instanceof Array) {
+        if ( Array.isArray(cond[k]) ) {
           vals = [];
           for (let i = 0; i < cond[k].length; i++) {
             vals.push(this.qoute(cond[k][i]));
@@ -295,7 +295,7 @@ class model {
 
   async select (fields = '*') {
     this.sqlUnit.command = 'SELECT';
-    if (fields instanceof Array) {
+    if ( Array.isArray(fields) ) {
       this.sqlUnit.fields = fields.join(',');
     } else if (typeof fields === 'string') {
       this.sqlUnit.fields = fields;
@@ -321,9 +321,10 @@ class model {
   }
 
   async insertAll (data) {
-    if (!(data instanceof Array) || data.length == 0) {
+    if (!Array.isArray(data) || data.length == 0) {
       throw new Error('data must be array and length > 0');
     }
+
     this.sqlUnit.command = 'INSERT';
     let fields = Object.keys(data[0]);
 
