@@ -795,7 +795,7 @@ class pqmodel {
      * postgresql 会把联合索引多个字段使用 _ 连接。
      */
     if (indname.indexOf(',') > 0) {
-      indtext = indname.replace(',', '_');
+      indtext = indname.replaceAll(',', '_');
     }
 
     //在pg_indexes中不能带上schema
