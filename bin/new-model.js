@@ -50,7 +50,7 @@ class ${name} extends pqmodel {
     //this.primaryKey = 'id'
 
     //数据表真正的名称。
-    this.tableName = '${name}'
+    this.tableName = '${name.toLowerCase()}'
 
     this.table = _table
 
