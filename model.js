@@ -398,7 +398,7 @@ class model {
       throw new Error('callback must be async function');
     }
     
-    var finalRet = {
+    let finalRet = {
       result : null,
       ok : true,
       errmsg : ''
