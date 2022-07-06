@@ -463,9 +463,13 @@ transaction不会抛出异常，相反，它会捕获异常然后设定相关数
 | max (cond, schema = null) |  | 最大值 |
 | min (cond, schema = null) |  | 最小值 |
 | sum (cond, schema = null) |  | 求和 |
-| group(group_field, options={}) | options支持schema、where、selectField属性。 | 通过where属性来传递条件，schema可以用来指定数据库分组。 |
+| group(group_field, options={}) | options支持schema、where、selectField、order属性。 | 通过where属性来传递条件，schema可以用来指定数据库分组。 |
+| dataOut(options={}) | 导出数据，返回值是生成器函数。 | 运行返回的生成器函数，并不断调用next完成所有数据的导出。 |
+| dataIn(options) | 通过选项data传递导入的数据，支持mode、update选项。 | mode默认为'strict'，也可以选择'loose'模式，表示宽松模式，此时遇到错误数据会略过。update表示更新类型，默认为'delete-insert'会先删除再插入，也可以是'update'表示更新已有数据，也可以是'none'表示不更新已存在数据。 |
+| dataOuthandle(callback, options={}) | 对dataOut的包装函数，options参考dataOut，callback表示对生成器每次返回的数据调用callback处理。 | callback接受的参数就是每次生成器返回的数据。 |
 | Sync (debug = false) | 是否调试，会输出相关信息 | 同步表 |
 | CreateSchema (schema) | 字符串 | 创建schema |
+
 
 表属性：
 
@@ -542,10 +546,6 @@ this.table = {
 **tableName**
 
 必须指定的字段，表示数据库表的名字。
-
-**modelName**
-
-指定新的名字，titbit-loader自动加载会识别此属性，并按照此名字设定值作为app.service.model上的属性而不是使用文件名，默认的会使用文件名。
 
 ### 完整的使用示例
 
