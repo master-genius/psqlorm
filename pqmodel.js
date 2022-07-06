@@ -405,6 +405,221 @@ class pqmodel {
     return await this.model(schema).where(cond).sum(fields);
   }
 
+  _checkFields (fields, options = {}) {
+    if (!fields || !Array.isArray(fields)) return {ok: false, errcode: 'TYPE_WRONG'};
+
+    let notin = [];
+    for (let k of fields) {
+      if (!options.dataIn && (k.indexOf('(') >= 0 || k.indexOf('as') > 0)) continue;
+
+      if (!this.table.column[k]) {
+        notin.push(k);
+      }
+    }
+
+    if (notin.length > 0) return {ok: false, notin, errcode: 'FIELD'};
+
+    return {ok: true};
+  }
+
+  /*
+   * 数据的导入导出操作。
+   * 对于导出操作来说，需要先计算总数，如果数量太大则不能进行一次性导出，需要分块。
+   * 对于导入来说，要检查数据是否已经变化，如果字段已经变化，则根据变化情况，进行调整。
+   *
+   * */
+  /*
+   * @param {object} options 
+   *  - fields
+   *  - file
+   *  - 
+   *
+   * */
+  async dataOut (options = {}) {
+    let cond = options.cond || {};
+    let total = await this.count(cond);
+    let pagesize = 1000;
+
+    if (options.pagesize && typeof options.pagesize === 'number' && options.pagesize > 1) {
+      pagesize = options.pagesize;
+    }
+
+    if (options.fields) {
+      if (typeof options.fields === 'string') {
+        options.fields = options.fields.split(',').filter(p => {
+          if (p.length > 0) return p.trim();
+        });
+      }
+      
+      if (Array.isArray(options.fields)) {
+        let st = this._checkFields(options.fields);
+        if (!st.ok) delete options.fields;
+
+        if (!st.ok) {
+          throw new Error(`无法导出不存在的列：${st.notin.join()}`);
+        }
+      } else {
+        delete options.fields;
+      }
+
+    } else {
+      options.fields = '*';
+    }
+
+    let totalpage = parseInt(total / pagesize) + ((total % pagesize) ? 0 : 1);
+    
+    let offset = (options.offset !== undefined && typeof options.offset === 'number') ? options.offset : 0;
+
+    if (offset < 0) offset = 0;
+
+    //默认返回生成器。
+    let self = this;
+    return async function * () {
+      
+      let ret;
+      let fields = options.fields || '*';
+
+      while (true) {
+        ret = await self.list(cond, {
+          offset,
+          pagesize,
+          selectField: fields
+        });
+        
+        if (offset < total && ret.length > 0) {
+          yield ret;
+        } else {
+          break;
+        }
+
+        offset += ret.length;
+      }
+
+    };
+
+  } // dataOut end
+  
+  async dataOutHandle (callback, options = {}) {
+    if (!options || typeof options !== 'object') options = {}
+
+    if (!callback || typeof callback !== 'function')
+      throw new Error('需要传递callback用于处理导出的数据');
+
+    let dg = await this.dataOut(options);
+
+    let d = dg();
+    let r;
+
+    while (true) {
+      r = await d.next();
+      if (r.done) break;
+      await callback(r.value);
+    }
+
+  }
+
+  async dataIn (options = {}) {
+    if (!options.data || !Array.isArray(options.data) ) {
+      throw new Error('数据格式错误，请通过选项data传递要导入的数据，数据格式为数组。');
+    }
+
+    //loose or strict
+    if (options.mode === undefined) options.mode = 'strict';
+
+    //delete-insert update none
+    if (options.update === undefined) options.update = 'delete-insert';
+
+    let uid = this.primaryKey;
+
+    let ks;
+
+    let wrongs = [];
+
+    let notin = [];
+
+    let createList = [];
+
+    let updateList = [];
+
+    let idlist = [];
+
+    for (let a of options.data) {
+      if (typeof a !== 'object' || Array.isArray(a) ) {
+        wrongs.push(a);
+      } else {
+        ks = this._checkFields(Object.keys(a), {dataIn: true});
+        if (!ks.ok) {
+          notin.push(a);
+          continue;
+        }
+      }
+      
+      ;(a[uid] === undefined) && createList.push(a);
+
+      if (a[uid] !== undefined) {
+        updateList.push(a);
+        idlist.push(a[uid]);
+      }
+    }
+    
+    if (options.mode === 'strict' && (wrongs.length > 0 || notin.length > 0))
+      return {
+        ok: false,
+        dataWrong: wrongs,
+        fieldWrong: notin
+      };
+
+    let ret = await this.transaction(async (db, ret) => {
+        if (createList.length > 0)
+          await db.insertAll(createList);
+
+        let cond = {};
+
+        if (idlist.length > 0) {
+          switch (options.update) {
+            case 'delete-insert':
+              cond[uid] = idlist;
+              await db.where(cond).delete();
+              await db.insertAll(updateList);
+              break;
+
+              //先检测是否存在然后确定是更新还是创建
+            case 'update':
+            case 'none':
+              cond[uid] = idlist;
+              let chklist = await db.where(cond).select(uid);
+              let r;
+              let updInsert = [];
+              let realUpdate = [];
+              let idmap = {};
+
+              chklist.rowCount > 0 && chklist.rows.forEach(a => {
+                idmap[ a[uid] ] = a;
+              });
+
+              for (let d of updateList) {
+                if (idmap[ d[uid] ]) realUpdate.push(d);
+                else updInsert.push(d);
+              }
+
+              if (realUpdate.length > 0 && options.update === 'update') {
+                for (let d of realUpdate) {
+                  cond[uid] = d[uid];
+                  await db.where(cond).update(d);
+                }
+              }
+
+              updInsert.length > 0 && await db.insertAll(updInsert);
+              break;
+          }
+        }
+    });
+
+    ret.dataWrong = wrongs;
+    ret.fieldWrong = notin;
+    return ret;
+  }
+
   /**
    * 
    * @param {string} gby 
@@ -413,9 +628,12 @@ class pqmodel {
    */
   async group (gby, options = {}) {
 
-    let r = await this.model(options.schema || null).where(options.where || {})
-                              .group(gby)
-                              .select(options.selectField || this.selectField);
+    let t = this.model(options.schema || null).where(options.where || {})
+                              .group(gby);
+
+    if (options.order) t = t.order(options.order);
+
+    let r = await t.select(options.selectField || this.selectField);
     
     if (r.rowCount > 0) {
       return r.rows;
@@ -432,15 +650,15 @@ class pqmodel {
 
     return await this.orm.transaction(async (db) => {
       let ret = {
-        failed: false,
+        ok: true,
         errmsg : ''
       };
 
       //只有db才是事物安全的，可以保证原子操作。
       try {
-        await callback(db, ret);
+        await callback(db.model(this.tableName), ret);
       } catch (err) {
-        ret.failed = true;
+        ret.ok = false;
         ret.errmsg = err.message;
       }
 
