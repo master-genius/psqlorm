@@ -1,10 +1,28 @@
 'use strict';
 
 const porm = require('../pqorm');
+const pqmodel = require('../pqmodel');
 
-var db = {};
+const db = {
+  release: () => {},
+  query: () => {},
+  rollback:()=>{},
+  connect: () => {
+    return db
+  }
+};
 
-var m = new porm(db);
+let m = new porm(db);
+
+class TestModel extends pqmodel {
+  constructor (db) {
+    super(db);
+    this.tableName = 'test';
+  }
+
+}
+
+let pm = new TestModel(m);
 
 
 ;(async () => {
@@ -78,6 +96,19 @@ var m = new porm(db);
           .insertAll(dataList);
 
   console.log(r);
+
+  await pm.transaction(async (db, ret) => {
+    
+    let sqltext = await db.where({id: [1,2,3]}).fetch().select();
+
+    console.log(sqltext);
+
+    sqltext = await db.model('user').where({id:234}).fetch().update({key: 234});
+
+    console.log(sqltext);
+
+  });
+
 
 })();
 
