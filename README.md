@@ -63,7 +63,7 @@ const pqorm = new psqlorm(pgdb);
  *   password : '',
  *   user     : '',
  *   host     : '',
- *   // 连接池最大数量
+ *   \/\/ 连接池最大数量
  *   max      : 12
  * }
  */
@@ -214,6 +214,32 @@ let pqorm = initORM(dbconfig);
 });
 
 ```
+
+## RETURNING 在更改数据后返回列
+
+这是一个数据的功能，sql语句支持returning功能可以在更改后返回指定的列，不需要再做一次查询。
+
+model层面提供了returning接口设置要返回的列。
+
+``` JavaScript
+
+let pqorm = initORM(dbconfig);
+
+;(async () => {
+
+  //更新
+  await pqorm.model('users')
+        .where('user_id = ?', ['123'])
+        .returning('id,username,role')
+        .update({
+          username : 'qaz'
+        });
+
+});
+
+```
+
+更改操作只针对insert、update、delete有效。
 
 ## 统计
 
@@ -447,22 +473,22 @@ transaction不会抛出异常，相反，它会捕获异常然后设定相关数
 | --- | ---- | ---- |
 | model (schema = null) | 可以指定schema | 返回模型实例 |
 | alias (name) | 字符串 | 表别名 |
-| get (cond, schema = null) | object | 条件 |
-| insert (data, schema = null) | object | 要插入的数据 |
-| insertAll (data, schema = null) | Array[object] | 插入的数据数组 |
-| update (cond, data, schema = null) |  | 更新 |
-| delete (cond, schema = null) |  | 删除 |
-| transaction (callback, schema = null) |  | 事务，和之前的接口一致。 |
+| get (cond, options={schema: null}) | object | 条件 |
+| insert (data, options={schema: null}) | object | 要插入的数据，options支持returning属性设定要返回的列，update和delete操作也支持。 |
+| insertAll (data, options={schema: null}) | Array[object] | 插入的数据数组 |
+| update (cond, data, options={schema: null}) |  | 更新 |
+| delete (cond, options={schema: null}) |  | 删除 |
+| transaction (callback, schema = null) |  | 事务，和model有所区别，是对model层transaction的封装。callback接受第一个参数是db，第二个参数是一个object，用于设置事务执行状态和设定返回的数据。 |
 | innerJoin(m, on, options = {}) | m可以是字符串表示表名也可以是另一个模型实例 | options支持where、schema、pagesize(相当于limit) 、offset、selectField、order属性。|
 | leftJoin(m, on, options = {}) | on是join条件 | options参考innerJoin。 |
 | rightJoin(m, on, options = {}) | schema可以设置数据库schema | options参考innerJoin。 |
 | makeId () |  | 生成唯一ID。 |
 | list (cond, args, schema = null) | args是object，支持属性：pagesize，order，offset，selectField。皆有默认值 | 查询列表，默认使用this.selectField作为选取的列，可以使用属性selectField指定。 |
-| count (cond, schema = null) |  | 统计 |
-| avg (cond, schema = null) |  | 均值 |
-| max (cond, schema = null) |  | 最大值 |
-| min (cond, schema = null) |  | 最小值 |
-| sum (cond, schema = null) |  | 求和 |
+| count (cond, options={schema: null}) |  | 统计 |
+| avg (cond, options={schema: null}) |  | 均值，options支持to选项表示要转换的值，可选int、float、fixed、fixed-float。支持precision选项用于设置浮点数的精度。 |
+| max (cond, options={schema: null}) |  | 最大值，options支持to和precision |
+| min (cond, options={schema: null}) |  | 最小值，options支持to和precision |
+| sum (cond, options={schema: null}) |  | 求和，options支持to和precision |
 | group(group_field, options={}) | options支持schema、where、selectField、order属性。 | 通过where属性来传递条件，schema可以用来指定数据库分组。 |
 | dataOut(options={}) | 导出数据，返回值是生成器函数。 | 运行返回的生成器函数，并不断调用next完成所有数据的导出。 |
 | dataIn(options) | 通过选项data传递导入的数据，支持mode、update选项。 | mode默认为'strict'，也可以选择'loose'模式，表示宽松模式，此时遇到错误数据会略过。update表示更新类型，默认为'delete-insert'会先删除再插入，也可以是'update'表示更新已有数据，也可以是'none'表示不更新已存在数据。 |
@@ -470,6 +496,50 @@ transaction不会抛出异常，相反，它会捕获异常然后设定相关数
 | Sync (debug = false) | 是否调试，会输出相关信息 | 同步表 |
 | CreateSchema (schema) | 字符串 | 创建schema |
 
+
+## 事务
+
+```javascript
+
+//测试代码
+;async (() => {
+
+  let r = await db.university.transaction(async (tb, ret) => {
+
+    let a = await tb.model(db.userResult.tableName)
+                    .returning('id,name,sex,subject')
+                    .insert({
+                      id: db.university.makeId(),
+                      name: '王金刚',
+                      sex: 1,
+                      year: 2023
+                    })
+
+    //以抛出错误的形式终止事务
+    ret.throwFailed('事务终止')
+
+    a = await tb.model(db.university.tableName)
+                .returning('id,old_name,uname')
+                .update({old_name: `old ${Date.now()}`})
+
+    //不会抛出错误。但最终事务会终止。
+    ret.failed('不想执行了！')
+
+    //如果设置了data属性，则最后r得到的数据就是ooo而不是success
+    //ret.data = 'ooo'
+
+    //如果不设置ret.data属性，则return值作为r的结果
+    return 'success'
+  })
+
+  // r.ok表示事务是否成功，error和errmsg分别对应错误对象和错误文本。
+  // r.result属性是事务完成后最终的返回结果。
+  console.log(r)
+
+
+})();
+
+```
 
 表属性：
 
