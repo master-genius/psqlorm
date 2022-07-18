@@ -57,7 +57,8 @@ class model {
       order : '',
       offset : 0,
       join : '',
-      group: ''
+      group: '',
+      returning: ''
     };
     
     this.last = null;
@@ -74,6 +75,7 @@ class model {
     this.sqlUnit.join = '';
     this.sqlUnit.order = '';
     this.sqlUnit.group = '';
+    this.sqlUnit.returning = '';
     this.last = null;
   }
 
@@ -245,6 +247,17 @@ class model {
     return this;
   }
 
+  returning (cols) {
+    if (Array.isArray(cols))
+      this.sqlUnit.returning = ' returning ' + cols.join(',');
+    else if (typeof cols === 'string' && cols !== '')
+      this.sqlUnit.returning = ' returning ' + cols;
+    else
+      this.sqlUnit.returning = '';
+
+    return this;
+  }
+
   psql() {
     var sql = '';
     var schemaTable = `${this.schema}.${this.tableName}`;
@@ -257,16 +270,15 @@ class model {
         break;
 
       case 'DELETE':
-        sql = `DELETE FROM ${schemaTable} WHERE ${this.sqlUnit.where};`;
+        sql = `DELETE FROM ${schemaTable} ${this.sqlUnit.where.length > 0 ? 'WHERE ' : ''}${this.sqlUnit.where}${this.sqlUnit.returning};`;
         break;
 
       case 'UPDATE':
-        sql = `UPDATE ${schemaTable} SET ${this.sqlUnit.values} `
-          +`${this.sqlUnit.where.length > 0 ? ' WHERE ' : ''} ${this.sqlUnit.where};`;
+        sql = `UPDATE ${schemaTable} SET ${this.sqlUnit.values} ${this.sqlUnit.where.length > 0 ? ' WHERE ' : ''} ${this.sqlUnit.where}${this.sqlUnit.returning};`;
         break;
 
       case 'INSERT':
-        sql = `INSERT INTO ${schemaTable} ${this.sqlUnit.fields} VALUES ${this.sqlUnit.values};`;
+        sql = `INSERT INTO ${schemaTable} ${this.sqlUnit.fields} VALUES ${this.sqlUnit.values}${this.sqlUnit.returning};`;
         break;
 
     }
@@ -401,7 +413,8 @@ class model {
     let finalRet = {
       result : null,
       ok : true,
-      errmsg : ''
+      errmsg : '',
+      error: null
     }
 
     try {
@@ -415,19 +428,22 @@ class model {
       
       let cret = await callback(this);
       
-      if ((cret && typeof cret === 'object' && cret.failed === true) || cret === false) {
+      if ((cret && typeof cret === 'object' && cret.ok === false) || cret === false) {
+        if (cret && cret.error) throw cret.error;
+
         let errmsg = (cret && cret.errmsg) ? cret.errmsg : 'Transaction failed.';
         throw new Error(errmsg);
       }
 
       await this.db.query('COMMIT');
     
-      finalRet.result = cret;
+      finalRet.result = (cret && typeof cret === 'object') ? (cret.data || cret.result) : cret;
 
     } catch (err) {
       this.db.query('ROLLBACK');
       finalRet.errmsg = err.message;
       finalRet.ok = false;
+      finalRet.error = err;
     } finally {
       this.db.release();
       this.db = this.odb;

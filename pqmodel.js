@@ -41,8 +41,6 @@ class pqmodel {
 
     this.tableName = null;
 
-    this.aliasName = null;
-
     this.relateName = null;
 
     this.primaryKey = 'id';
@@ -105,7 +103,7 @@ class pqmodel {
 
     process.nextTick(async () => {
       try {
-        await this.__init();
+        await this.__init__();
       } catch (err) {
         console.error(err);
       }
@@ -113,7 +111,7 @@ class pqmodel {
 
   }
 
-  async __init () {
+  async __init__ () {
     this.relate();
 
     if (this.init && typeof this.init === 'function') {
@@ -123,7 +121,7 @@ class pqmodel {
         } catch (err) {
           console.error(err);
         }
-      }, 100);
+      }, 10);
     }
     
   }
@@ -157,16 +155,6 @@ class pqmodel {
   }
 
   /**
-   * 
-   * @param {string} name
-   *
-   * */
-  alias (name) {
-    this.aliasName = name;
-    return this;
-  }
-
-  /**
    * @param {object|string} m 通过this.relate获取的模型实例或直接指定表名的字符串。
    * @param {string} on join条件。
    * @param {string} join_type 默认INNER。
@@ -182,14 +170,14 @@ class pqmodel {
       tname = m;
     } else {
       tname = m.tableName;
-      if (m.aliasName) {
-        tname += ` as ${m.aliasName}`;
+      if (options.relateAlias) {
+        tname += ` as ${options.relateAlias}`;
       }
     }
     
     let tj = this.orm.model(this.tableName, options.schema || null);
 
-    this.aliasName && (tj = tj.alias(this.aliasName));
+    options.alias && (tj = tj.alias(options.alias));
 
     tj = await tj.join(tname, on, join_type)
                     .where(options.where || {})
@@ -249,38 +237,44 @@ class pqmodel {
    * 否则最后一个参数是schema，默认是null。
    */
 
-  async insert (data, schema = null) {
+  async insert (data, options = {schema: null}) {
 
     if (data[this.primaryKey] === undefined && this.autoId) {
       data[this.primaryKey] = this.makeId();
     }
 
-    let r = await this.model(schema).insert(data);
+    let h = this.model(options.schema);
+    
+    options.returning && (h = h.returning(options.returning));
+
+    let r = await h.insert(data);
 
     if (r.rowCount <= 0) {
       return false;
     }
 
+    if (options.returning) return r.rows[0];
+
     return data[this.primaryKey];
   }
 
-  async finsert (data, schema = null) {
+  async finsert (data, options = {schema: null}) {
     if (this.beforeInsert && typeof this.beforeInsert === 'function') {
-      if (false === await this.beforeInsert(data, schema)) return false;
+      if (false === await this.beforeInsert(data, options)) return false;
     }
 
-    let id = await this.insert(data, schema);
+    let id = await this.insert(data, options);
 
     if (!id) return false;
 
     if (this.afterInsert && typeof this.afterInsert === 'function') {
-      this.afterInsert(data, schema);
+      this.afterInsert(id, data, options);
     }
 
     return id;
   }
 
-  async insertAll (data, schema = null) {
+  async insertAll (data, options = {schema: null}) {
     if (!Array.isArray(data)) {
       return false;
     }
@@ -297,42 +291,54 @@ class pqmodel {
 
       }
     }
+    
+    let h = this.model(options.schema);
+    
+    options.returning && (h = h.returning(options.returning));
 
-    let r = await this.model(schema).insertAll(data);
+    let r = await h.insertAll(data);
 
     if (r.rowCount <= 0) {
       return false;
     } else if (!this.autoId) {
+      if (options.returning) return r.rows;
       return r.rowCount;
     }
 
     return idlist;
   }
 
-  async update (cond, data, schema = null) {
-    let r = await this.model(schema).where(cond).update(data);
+  async update (cond, data, options={schema: null}) {
+
+    let h = this.model(options.schema);
+    options.returning && (h = h.returning(options.returning));
+
+    let r = await h.where(cond).update(data);
+
+    if (options.returning) return r.rows;
+
     return r.rowCount;
   }
 
-  async fupdate (cond, data, schema = null) {
+  async fupdate (cond, data, options={schema: null}) {
     if (this.beforeUpdate && typeof this.beforeUpdate === 'function') {
-      if (false === await this.beforeUpdate(cond, data, schema)) return false;
+      if (false === await this.beforeUpdate(cond, data, options)) return false;
     }
 
-    let count = await this.update(cond, data, schema);
+    let count = await this.update(cond, data, options);
 
-    if (count <= 0) return 0;
+    if ((typeof count === 'number' && count <= 0) || count.length <= 0) return 0;
 
     if (this.afterUpdate && typeof this.afterUpdate === 'function') {
-      this.afterUpdate(cond, data, schema);
+      this.afterUpdate(count, cond, data, options);
     }
 
     return count;
   }
 
-  async list (cond, args = {}, schema = null) {
+  async list (cond, args = {schema: null}) {
 
-    let t = this.model(schema).where(cond);
+    let t = this.model(args.schema).where(cond);
 
     let offset = args.offset || 0;
 
@@ -352,57 +358,115 @@ class pqmodel {
 
   }
 
-  async get (cond, fields = null, schema = null) {
-    let r = await this.model(schema)
+  async get (cond = {}, options = {fields: null, schema: null}) {
+    let r = await this.model(options.schema)
                       .where(cond)
-                      .select(fields || this.selectField);
+                      .select(options.fields || this.selectField);
 
     if (r.rowCount <= 0) {
       return null;
     }
+
     return r.rows[0];
   }
 
-  async delete (cond, schema = null) {
-    let r = await this.model(schema).where(cond).delete();
+  async delete (cond, options = {schema: null}) {
+    let h = this.model(options.schema);
+    options.returning && (h = h.returning(options.returning));
+
+    let r = await h.where(cond).delete();
+    
+    if (options.returning) return r.rows;
+
     return r.rowCount;
   }
 
-  async fdelete (cond, schema = null) {
+  async fdelete (cond, options = {schema: null}) {
     if (this.beforeDelete && typeof this.beforeDelete === 'function') {
-      if (false === await this.beforeDelete(cond, schema)) return false;
+      if (false === await this.beforeDelete(cond, options)) return false;
     }
 
-    let count = await this.delete(cond, schema);
+    let count = await this.delete(cond, options);
 
-    if (count <= 0) return 0;
+    if ((typeof count === 'number' && count <= 0) || count.length <= 0) return 0;
 
     if (this.afterDelete && typeof this.afterDelete === 'function') {
-      this.afterDelete(cond, schema);
+      this.afterDelete(count, cond, options);
     }
 
     return count;
   }
 
-  async count (cond = {}, schema = null) {
-    let total = await this.model(schema).where(cond).count();
+  async count (cond = {}, options = {schema: null}) {
+    let total = await this.model(options.schema).where(cond).count();
     return total;
   }
 
-  async max (cond = {}, fields, schema = null) {
-    return await this.model(schema).where(cond).max(fields);
+  _fmtNum (m, options) {
+    switch(options.to) {
+      case 'int':
+        return parseInt(m);
+
+      case 'float':
+        return parseFloat(m);
+
+      case 'fixed':
+      case 'fixed-float':
+        let prec = (options.precision !== undefined && typeof options.precision === 'number')
+                    ? options.precision
+                    : 1;
+        if (options.to === 'fixed')
+          return parseFloat(m).toFixed(prec);
+
+        return parseFloat(parseFloat(m).toFixed(prec));
+    }
+
+    return m;
   }
 
-  async min (cond = {}, fields, schema = null) {
-    return await this.model(schema).where(cond).min(fields);
+  _no_fields_error = new Error('!!必须指定fileds。');
+
+  throwNoFieldsError (options) {
+    if (!options.fields) throw this._no_fields_error;
   }
 
-  async avg (cond = {}, fields, schema = null) {
-    return await this.model(schema).where(cond).avg(fields);
+  async max (cond = {}, options = {schema: null}) {
+    this.throwNoFieldsError(options);
+    
+    let m = await this.model(options.schema).where(cond).max(options.fields);
+
+    if (!options.to) return m;
+
+    return this._fmtNum(m, options);
   }
 
-  async sum (cond = {}, fields, schema = null) {
-    return await this.model(schema).where(cond).sum(fields);
+  async min (cond = {}, options = {schema: null}) {
+    this.throwNoFieldsError(options);
+    
+    let m = await this.model(options.schema).where(cond).min(options.fields);
+
+    if (!options.to) return m;
+
+    return this._fmtNum(m, options);
+  }
+
+  async avg (cond = {}, options = {schema: null}) {
+    this.throwNoFieldsError(options);
+
+    let m = await this.model(options.schema).where(cond).avg(options.fields);
+    if (!options.to) return m;
+
+    return this._fmtNum(m, options);
+  }
+
+  async sum (cond = {}, options = {schema: null}) {
+    this.throwNoFieldsError(options);
+
+    let m = await this.model(options.schema).where(cond).sum(options.fields);
+
+    if (!options.to) return m;
+
+    return this._fmtNum(m, options);
   }
 
   _checkFields (fields, options = {}) {
@@ -478,12 +542,14 @@ class pqmodel {
       
       let ret;
       let fields = options.fields || '*';
+      let schema = options.schema || null;
 
       while (true) {
         ret = await self.list(cond, {
           offset,
           pagesize,
-          selectField: fields
+          selectField: fields,
+          schema
         });
         
         if (offset < total && ret.length > 0) {
@@ -613,7 +679,7 @@ class pqmodel {
               break;
           }
         }
-    });
+    }, options.schema || null);
 
     ret.dataWrong = wrongs;
     ret.fieldWrong = notin;
@@ -645,22 +711,35 @@ class pqmodel {
   async transaction (callback, schema = '') {
 
     if (typeof callback !== 'function' || callback.constructor.name !== 'AsyncFunction') {
-      throw new Error(`callback must be async function`);
+      throw new Error(`transaction 执行的回调函数必须使用 async 声明。`);
     }
 
     return await this.orm.transaction(async (db) => {
       let ret = {
         ok: true,
-        errmsg : ''
+        errmsg : '',
+
+        throwFailed: (err = 'transaction failed.') => {
+          ret.ok = false;
+
+          let ty = typeof err;
+
+          if (ty !== 'object') throw new Error(err);
+          
+          throw err;
+        },
+
+        failed: (errmsg = 'transaction failed.') => {
+          ret.ok = false;
+          ret.errmsg = errmsg;
+        },
+
+        data: null
       };
 
-      //只有db才是事物安全的，可以保证原子操作。
-      try {
-        await callback(db.model(this.tableName), ret);
-      } catch (err) {
-        ret.ok = false;
-        ret.errmsg = err.message;
-      }
+      let r = await callback(db.model(this.tableName), ret);
+
+      if (r && !ret.data && ret.ok) ret.data = r;
 
       return ret;
     }, schema);
