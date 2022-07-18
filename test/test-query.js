@@ -12,7 +12,6 @@ pm.schema = 'www';
   var t = '';
   let r = null;
   for (let i=0; i<20000; i++) {
-    
     t = pm.model('goods').fetch();
     r = await t.where('take_on=? AND (goods_type=? OR goods_type=?)', [1, 'g','p'])
               .select('id,goods_name,image_thumb,inventory');
@@ -28,7 +27,12 @@ pm.schema = 'www';
                 })
                 .limit(0,123)
                 .select('id,user_id,msg_time,is_delete,content');
-    
+
+    r = await pm.model('users', 'uni').fetch()
+                .returning('id,username')
+                .where({id: 'sdf32947239v', is_delete: 0})
+                .update({level: 5, role: 'admin', detail: '$$18236D$$$$'});
+    //console.log(r)
   }
 
   end_time = Date.now();
