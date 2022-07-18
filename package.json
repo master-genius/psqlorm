@@ -1,7 +1,7 @@
 {
   "name": "psqlorm",
-  "version": "6.0.1",
-  "description": "orm for pg",
+  "version": "7.0.0",
+  "description": "orm for postgresql",
   "main": "pqorm.js",
   "scripts": {
     "test": "echo ok"
