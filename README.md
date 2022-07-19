@@ -274,6 +274,18 @@ let pqorm = initORM(dbconfig);
 
 提供了 sum、avg、max、min用于计算求和、均值、最大值、最小值。这几个函数，在查找到数据后返回值为数字，avg返回值为浮点类型，其他函数返回数字要看数据库字段是什么类型，而且max和min可以用于字符串类型的处理。
 
+但是，如果你需要类型转换，可以在sum、avg、max、min中传递第二个参数指定要转换的类型，支持以下值：
+
+- int
+
+- float
+
+- fixed
+
+当转换类型为fixed时，实际的转换并不会转换为字符串，而是调用toFixed后再次转换为浮点数。
+
+配合fixed选项，还有第三个参数指定为精度，默认为1。
+
 **如果没有找到数据，则无法进行计算，此时会返回null。**
 
 ``` JavaScript
@@ -293,7 +305,8 @@ let pqorm = initORM(dbconfig);
 
   let min = await pqorm.model('users').where(cond).min('high')
 
-  let avg = await pqorm.model('users').where(cond).avg('high')
+  //转换为浮点数，保留2位小数。
+  let avg = await pqorm.model('users').where(cond).avg('high', 'fixed', 2)
 
   console.log(max, min, avg)
 
