@@ -217,7 +217,7 @@ let pqorm = initORM(dbconfig);
 
 ## RETURNING 在更改数据后返回列
 
-这是一个数据的功能，sql语句支持returning功能可以在更改后返回指定的列，不需要再做一次查询。
+这是一个数据库的功能，sql语句支持returning功能可以在更改后返回指定的列，不需要再做一次查询。
 
 model层面提供了returning接口设置要返回的列。
 
@@ -272,7 +272,7 @@ let pqorm = initORM(dbconfig);
 
 ## 求和、均值、最大值、最小值
 
-提供了 sum、avg、max、min用于计算求和、均值、最大值、最小值。这几个函数，在查找到数据后返回值为数字，avg返回值为浮点类型，其他函数返回数字要看数据库字段是什么类型。
+提供了 sum、avg、max、min用于计算求和、均值、最大值、最小值。这几个函数，在查找到数据后返回值为数字，avg返回值为浮点类型，其他函数返回数字要看数据库字段是什么类型，而且max和min可以用于字符串类型的处理。
 
 **如果没有找到数据，则无法进行计算，此时会返回null。**
 
@@ -410,17 +410,20 @@ let pqorm = initORM(dbconfig);
     //设计方案是返回值是一个对象，其中failed字段如果为true则表示执行失败，可以设置errmsg描述错误信息。
     //或者，如果返回false，则也认为是执行失败了。
     let ret = {
-      failed: false,
+      ok: true,
       errmsg : ''
     };
 
     let a = await db.model('user').where('user_id = ?', [user_id]).select();
     if (a.rowCount <= 0) {
-      ret.failed = true;
+      ret.ok = false;
       ret.errmsg = '没有此用户';
       return ret;
     }
-    //...
+
+    ret.data = a;
+
+    return ret;
   });
 
   //返回值r是一个对象，三个属性ok、result、errmsg
@@ -438,11 +441,11 @@ transaction不会抛出异常，相反，它会捕获异常然后设定相关数
 
 ``` JavaScript
 {
-    //result是callback返回值的信息
-    //result还可以包括其他属性，这是开发者自行处理的。
+    //result是callback返回值的数据，如果是一个object则result指向data属性或result属性。
+    //否则result指向返回值本身。
     result : {
-        failed: false,
-        errmsg : ''
+      id: '111',
+      username: 'xxxxx'
     },
 
     //ok表示事务执行是否成功。
