@@ -385,23 +385,45 @@ class model {
     return parseInt(r.rows[0].total);
   }
 
-  async avg (field) {
+  toValue (val, type, prec = 0) {
+    switch (type) {
+      case 'int':
+        return parseInt(val);
+
+      case 'float':
+        return parseFloat(val);
+
+      case 'fixed':
+        let a = parseFloat(val);
+        if (isNaN(a)) return val;
+        return parseFloat( a.toFixed(prec) );
+    }
+
+    return val;
+  }
+
+  async avg (field, to = '', prec = 1) {
     let r = await this.select(`avg(${field}) as average`);
+    if (to) return this.toValue(r.rows[0].average, to, prec);
+
     return r.rows[0].average;
   }
 
-  async max (field) {
+  async max (field, to = '', prec = 1) {
     let r = await this.select(`max(${field}) as m`);
+    if (to) return this.toValue(r.rows[0].m, to, prec);
     return r.rows[0].m;
   }
 
-  async min (field) {
+  async min (field, to = '', prec = 1) {
     let r = await this.select(`min(${field}) as m`);
+    if (to) return this.toValue(r.rows[0].m, to, prec);
     return r.rows[0].m;
   }
 
-  async sum (field) {
+  async sum (field, to = '', prec = 1) {
     let r = await this.select(`sum(${field}) as sum_value`);
+    if (to) return this.toValue(r.rows[0].sum_value, to, prec);
     return r.rows[0].sum_value;
   }
 
