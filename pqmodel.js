@@ -352,7 +352,7 @@ class pqmodel {
       t = t.order(args.order);
     }
     
-    let r = await t.select(args.selectField || this.selectField);
+    let r = await t.select(args.fields || this.selectField);
 
     return r.rows;
 
