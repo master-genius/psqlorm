@@ -801,6 +801,11 @@ class pqmodel {
       return false;
     }
 
+    if (!this.tableName) {
+      console.error('tableName不能为空。');
+      return false;
+    }
+
     console.log(`start to sync table ${this.tableName}`)
 
     if (this.table.column === undefined || typeof this.table.column !== 'object') {
@@ -906,6 +911,21 @@ class pqmodel {
       console.log(' - END - ');
     }
 
+  }
+
+  check (data, quiet = true) {
+    let cols = this.table.column;
+    for (let k in data) {
+      if (cols[k] === undefined) {
+        if (!quiet) {
+          throw new Error(`column ${k} 没有定义。`);
+        } else {
+          delete data[k];
+        }
+      }
+    }
+
+    return this;
   }
 
     /**
@@ -1026,9 +1046,7 @@ class pqmodel {
           }
         }
 
-        if (debug) {
-          console.log(sql);
-        }
+        debug && console.log(sql);
 
         try {
           await this.db.query(sql);
