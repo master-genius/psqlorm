@@ -699,7 +699,7 @@ class pqmodel {
 
     if (options.order) t = t.order(options.order);
 
-    let r = await t.select(options.selectField || this.selectField);
+    let r = await t.select(options.fields || this.selectField);
     
     if (r.rowCount > 0) {
       return r.rows;
