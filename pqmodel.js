@@ -403,6 +403,16 @@ class pqmodel {
   }
 
   _fmtNum (m, options) {
+    let col = this.table.column[options.fields];
+
+    if (!options.to && col.to) {
+      options.to = col.to;
+    }
+
+    if (options.precision === undefined && col.precision !== undefined) {
+      options.precision = col.precision;
+    }
+
     switch(options.to) {
       case 'int':
         return parseInt(m);
@@ -428,9 +438,13 @@ class pqmodel {
 
   throwNoFieldsError (options) {
     if (!options.fields) throw this._no_fields_error;
+    if (this.table.column[options.fields] === undefined)
+      throw new Error(`！！没有column：${options.fields}.`);
   }
 
   async max (cond = {}, options = {schema: null}) {
+    if (typeof options === 'string') options = {fields: options};
+
     this.throwNoFieldsError(options);
     
     let m = await this.model(options.schema).where(cond).max(options.fields);
@@ -441,6 +455,8 @@ class pqmodel {
   }
 
   async min (cond = {}, options = {schema: null}) {
+    if (typeof options === 'string') options = {fields: options};
+
     this.throwNoFieldsError(options);
     
     let m = await this.model(options.schema).where(cond).min(options.fields);
@@ -451,6 +467,8 @@ class pqmodel {
   }
 
   async avg (cond = {}, options = {schema: null}) {
+    if (typeof options === 'string') options = {fields: options};
+
     this.throwNoFieldsError(options);
 
     let m = await this.model(options.schema).where(cond).avg(options.fields);
@@ -460,6 +478,8 @@ class pqmodel {
   }
 
   async sum (cond = {}, options = {schema: null}) {
+    if (typeof options === 'string') options = {fields: options};
+
     this.throwNoFieldsError(options);
 
     let m = await this.model(options.schema).where(cond).sum(options.fields);
@@ -496,8 +516,6 @@ class pqmodel {
    * @param {object} options 
    *  - fields
    *  - file
-   *  - 
-   *
    * */
   async dataOut (options = {}) {
     let cond = options.cond || {};
@@ -809,13 +827,41 @@ class pqmodel {
     console.log(`start to sync table ${this.tableName}`)
 
     if (this.table.column === undefined || typeof this.table.column !== 'object') {
-      console.error('column属性必须为object类型');
-      return false;
+      throw new Error('column属性必须为object类型');
     }
 
     if (Object.keys(this.table.column).length <= 0) {
-      console.error('column没有定义字段');
-      return false;
+      throw new Error('column没有定义字段');
+    }
+
+    this.schema_oid = null;
+    let oid = await this.db.query(`SELECT * FROM pg_namespace WHERE nspname = '${this.orm.schema}'`);
+
+    if (oid.rowCount > 0) {
+      this.schema_oid = oid.rows[0].oid;
+    }
+  
+    //检测是否存在外键
+    let tmp_col, refarr, refmodel, refm;
+    for (let k in this.table.column) {
+      tmp_col = this.table.column[k];
+      if (tmp_col.ref) {
+        refarr = this._parseRef(tmp_col.ref, k);
+        refmodel = require(this.modelPath + '/' + refarr[0] + '.js');
+        refm = new refmodel(this.pqorm);
+        (new refmodel(this.orm)).Sync(debug, force);
+        tmp_col.type = refm.table.column[ refarr[1] ].type;
+        tmp_col.references = `REFERENCES ${this.orm.schema}.${refm.tableName} (${refarr[1]})`;
+        if (tmp_col.refActionDelete) {
+          tmp_col.references += ' ON DELETE ' + tmp_col.refActionDelete;
+        }
+
+        if (tmp_col.refActionUpdate) {
+          tmp_col.references += ' ON UPDATE ' + tmp_col.refActionUpdate;
+        }
+
+        tmp_col.refconstraint = `${this.tableName}_${k}_fkey`;
+      }
     }
 
     let database = this.db.options.database;
@@ -863,6 +909,10 @@ class pqmodel {
           if (tmp.default !== undefined) {
             sql += `default $$${tmp.default}$$ `;
           }
+          
+          if (tmp.ref && tmp.references) {
+            sql += tmp.references;
+          }
           sql += `,`;
         }
 
@@ -877,6 +927,7 @@ class pqmodel {
       await this.db.query(sql);
       await this._syncIndex(curTableName, debug);
       await this._syncUnique(curTableName, debug);
+      await this._syncReferences(curTableName, debug);
 
       return;
     }
@@ -906,6 +957,8 @@ class pqmodel {
     await this._syncUnique(curTableName, debug);
 
     await this._removeIndex(curTableName, debug);
+
+    await this._syncReferences(curTableName, debug);
 
     if (debug) {
       console.log(' - END - ');
@@ -1001,9 +1054,7 @@ class pqmodel {
         continue;
       }
 
-      if (col.typeLock) {
-        continue;
-      }
+      if (col.typeLock) continue;
       /**
        * 如果没有在支持的类型中，则相当于是typeLock为true的结果，
        * 因为这时候，无法判断真实的类型名称和默认值格式。
@@ -1037,8 +1088,8 @@ class pqmodel {
 
               await this.db.query(sql);
 
+              col.changed = true;
               continue;
-
             } else {
               console.error(` -- ${k} ${col.type} 从字符串类型转向其他类型无转换规则，或者设置force选项强制操作。`);
             }
@@ -1050,6 +1101,7 @@ class pqmodel {
 
         try {
           await this.db.query(sql);
+          col.changed = true;
         } catch (err) {
           console.error('Error:',err.message);
           continue;
@@ -1118,7 +1170,6 @@ class pqmodel {
         + `tablename='${this.tableName}' and schemaname = '${this.orm.schema}' `
         + `and indexname = '${this.tableName}_${indtext}_idx'`;
     
-  
     let r = await this.db.query(sql);
     if (r.rowCount > 0) {
       return false;
@@ -1187,7 +1238,6 @@ class pqmodel {
       }
       
       await this.db.query(`create index on ${curTableName} ${ind_using}(${indname})`);
-
     }
 
   }
@@ -1232,7 +1282,6 @@ class pqmodel {
       }
 
       await this.db.query(`create unique index on ${curTableName} (${indname})`);
-
     }
 
   }
@@ -1282,6 +1331,55 @@ class pqmodel {
 
   }
 
+  async _syncReferences (curTableName, debug = false) {
+    let sql = `SELECT * FROM pg_constraint WHERE connamespace=${this.schema_oid} AND contype='f'`
+              + ` AND conname ILIKE $$${this.tableName}_%$$`;
+    let r = await this.db.query(sql);
+    let refs = r.rows;
+
+    let ref_keys = [];
+
+    for (let a of refs) {
+      ref_keys.push(a.conname);
+    }
+
+    let tmp_col;
+    let refs_now_list = [];
+    let ind = 0;
+    for (let k in this.table.column) {
+      tmp_col = this.table.column[k];
+      if (!tmp_col.ref) continue;
+      refs_now_list.push(tmp_col.refconstraint);
+    }
+
+    for (let a of ref_keys) {
+      if (refs_now_list.indexOf(a) < 0) {
+        sql = `alter table ${curTableName} drop constraint ${a}`;
+        debug && console.log('-- drop constraint:', sql);
+        await this.db.query(sql);
+      }
+    }
+
+    for (let k in this.table.column) {
+      tmp_col = this.table.column[k];
+      if (!tmp_col.ref) continue;
+
+      ind = ref_keys.indexOf(tmp_col.refconstraint);
+
+      if (ind >= 0 && tmp_col.changed) {
+        sql = `alter table ${curTableName} drop constraint ${tmp_col.refconstraint}`;
+        await this.db.query(sql);
+      }
+
+      if (ind >= 0 && tmp_col.changed || ind < 0) {
+        sql = `alter table ${curTableName} add foreign key (${k}) ${tmp_col.references}`;
+        debug && console.log('-- create foreign key:', sql);
+        await this.db.query(sql);
+      }
+    }
+
+  }
+
   _compareType (f, col, real_type) {
     if (this.typeWithBrackets.indexOf(real_type) < 0) {
       return (f.data_type === real_type);
@@ -1325,7 +1423,6 @@ class pqmodel {
   }
 
   _realDefault (t, val) {
-
     if (t === 'boolean') {
       return (val === 't' ? 'true' : 'false');
     }
@@ -1338,6 +1435,13 @@ class pqmodel {
     return `${val === '' ? "''" : val}::${rt}`;
   }
 
+  //refstr model:column
+  _parseRef (refstr, curColumn) {
+    if (refstr.indexOf(':') > 0) {
+      return refstr.split(':').filter(p => p.length > 0);
+    }
+    return [refstr, curColumn];
+  }
 
 }
 
