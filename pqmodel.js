@@ -352,16 +352,16 @@ class pqmodel {
       t = t.order(args.order);
     }
     
-    let r = await t.select(args.fields || this.selectField);
+    let r = await t.select(args.field || this.selectField);
 
     return r.rows;
 
   }
 
-  async get (cond = {}, options = {fields: null, schema: null}) {
+  async get (cond = {}, options = {field: null, schema: null}) {
     let r = await this.model(options.schema)
                       .where(cond)
-                      .select(options.fields || this.selectField);
+                      .select(options.field || this.selectField);
 
     if (r.rowCount <= 0) {
       return null;
@@ -403,7 +403,7 @@ class pqmodel {
   }
 
   _fmtNum (m, options) {
-    let col = this.table.column[options.fields];
+    let col = this.table.column[options.field];
 
     if (!options.to && col.to) {
       options.to = col.to;
@@ -437,17 +437,17 @@ class pqmodel {
   _no_fields_error = new Error('!!必须指定fileds。');
 
   throwNoFieldsError (options) {
-    if (!options.fields) throw this._no_fields_error;
-    if (this.table.column[options.fields] === undefined)
-      throw new Error(`！！没有column：${options.fields}.`);
+    if (!options.field) throw this._no_fields_error;
+    if (this.table.column[options.field] === undefined)
+      throw new Error(`！！没有column：${options.field}.`);
   }
 
   async max (cond = {}, options = {schema: null}) {
-    if (typeof options === 'string') options = {fields: options};
+    if (typeof options === 'string') options = {field: options};
 
     this.throwNoFieldsError(options);
     
-    let m = await this.model(options.schema).where(cond).max(options.fields);
+    let m = await this.model(options.schema).where(cond).max(options.field);
 
     if (!options.to) return m;
 
@@ -455,11 +455,11 @@ class pqmodel {
   }
 
   async min (cond = {}, options = {schema: null}) {
-    if (typeof options === 'string') options = {fields: options};
+    if (typeof options === 'string') options = {field: options};
 
     this.throwNoFieldsError(options);
     
-    let m = await this.model(options.schema).where(cond).min(options.fields);
+    let m = await this.model(options.schema).where(cond).min(options.field);
 
     if (!options.to) return m;
 
@@ -467,22 +467,22 @@ class pqmodel {
   }
 
   async avg (cond = {}, options = {schema: null}) {
-    if (typeof options === 'string') options = {fields: options};
+    if (typeof options === 'string') options = {field: options};
 
     this.throwNoFieldsError(options);
 
-    let m = await this.model(options.schema).where(cond).avg(options.fields);
+    let m = await this.model(options.schema).where(cond).avg(options.field);
     if (!options.to) return m;
 
     return this._fmtNum(m, options);
   }
 
   async sum (cond = {}, options = {schema: null}) {
-    if (typeof options === 'string') options = {fields: options};
+    if (typeof options === 'string') options = {field: options};
 
     this.throwNoFieldsError(options);
 
-    let m = await this.model(options.schema).where(cond).sum(options.fields);
+    let m = await this.model(options.schema).where(cond).sum(options.field);
 
     if (!options.to) return m;
 
@@ -526,26 +526,26 @@ class pqmodel {
       pagesize = options.pagesize;
     }
 
-    if (options.fields) {
-      if (typeof options.fields === 'string') {
-        options.fields = options.fields.split(',').filter(p => {
+    if (options.field) {
+      if (typeof options.field === 'string') {
+        options.field = options.field.split(',').filter(p => {
           if (p.length > 0) return p.trim();
         });
       }
       
-      if (Array.isArray(options.fields)) {
-        let st = this._checkFields(options.fields);
-        if (!st.ok) delete options.fields;
+      if (Array.isArray(options.field)) {
+        let st = this._checkFields(options.field);
+        if (!st.ok) delete options.field;
 
         if (!st.ok) {
           throw new Error(`无法导出不存在的列：${st.notin.join()}`);
         }
       } else {
-        delete options.fields;
+        delete options.field;
       }
 
     } else {
-      options.fields = '*';
+      options.field = '*';
     }
 
     let totalpage = parseInt(total / pagesize) + ((total % pagesize) ? 0 : 1);
@@ -559,7 +559,7 @@ class pqmodel {
     return async function * () {
       
       let ret;
-      let fields = options.fields || '*';
+      let fields = options.field || '*';
       let schema = options.schema || null;
 
       while (true) {
@@ -717,7 +717,7 @@ class pqmodel {
 
     if (options.order) t = t.order(options.order);
 
-    let r = await t.select(options.fields || this.selectField);
+    let r = await t.select(options.field || this.selectField);
     
     if (r.rowCount > 0) {
       return r.rows;
