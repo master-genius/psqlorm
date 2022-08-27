@@ -40,6 +40,8 @@ class ${name} extends pqmodel {
   constructor (pqorm) {
     super(pqorm)
 
+    this.modelPath = __dirname
+
     //主键id前缀，建议不要超过2字符，请确保前缀和生成的id长度 <= 数据库字段的最大长度。
     this.idPre = ''
 
