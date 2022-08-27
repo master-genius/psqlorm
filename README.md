@@ -650,6 +650,9 @@ class data_great extends pqmodel {
     //必须写
     super(pqorm);
 
+    //主要用于外键自动更新，需要初始化模型。
+    this.modelPath = __dirname;
+
     //主键id前缀，建议不要超过2字符，或者要把主键id字符长度上限设置为24+
     this.idPre = '';
     
@@ -672,6 +675,11 @@ class data_great extends pqmodel {
 
         user_id : {
           type : 'varchar(16)',
+          //指定外键引用为users模型的id字段。
+          ref: 'users:id',
+          //指定更新动作。
+          refActionDelete: 'cascade',
+          refActionUpdate: 'cascade',
         },
 
         add_time : {
