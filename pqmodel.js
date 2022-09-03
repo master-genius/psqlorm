@@ -99,6 +99,15 @@ class pqmodel {
       'varchar', 'char', 'text', 'bytea', 'timestamp', 'timestampz', 'date', 'time'
     ];
 
+    ['defaultWithType', 'typeWithBrackets', 'times', 'strings', 'numerics', 'dataTypeMap'].forEach(a => {
+      Object.defineProperty(this, a, {
+        value: this[a],
+        enumerable: false,
+        configurable: false,
+        writable: false
+      });
+    });
+
     if (!global.__psqlorm_relate__) global.__psqlorm_relate__ = {};
 
     process.nextTick(async () => {
