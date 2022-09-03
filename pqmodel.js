@@ -405,7 +405,7 @@ class pqmodel {
   _fmtNum (m, options) {
     let col = this.table.column[options.field];
 
-    if (!options.to && col.to) {
+    if (!options.to && col && col.to) {
       options.to = col.to;
     }
 
