@@ -10,9 +10,26 @@ let mstr = `'use strict'
 
 const pqmodel = require('psqlorm').Model
 
+/**
+ * @typedef {object} column
+ * @property {string} type - 类型
+ * @property {string} refActionDelete - 外键删除后的行为，可以设置为cascade，具体参考数据库文档。
+ * @property {string} refActionUpdate - 外键更新后的行为，可以设置为cascade，具体参考数据库文档。
+ * @property {string} ref - 外键引用，格式 ModelName:COLUMN，示例：'users:id'
+ * @property {string|number} default - 默认值。
+ * @property {boolean} notNull - 不允许为null，默认为true。
+ * @property {string} oldName - 原column名称，如果要重命名字段，需要oldName指定原有名字。
+ * @property {boolean} typeLock - 是否锁定类型，如果为true则会锁定类型，不会更新。
+ *
+ * 如果指定ref，type会保持和外键引用的字段一致。
+ */
+
 //在column中编辑列字段。
 
 let _table = {
+  /**
+   * @type {column}
+   * */
   column: {
     id : {
       type : 'varchar(12)'
