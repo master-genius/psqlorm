@@ -27,28 +27,48 @@ const pqmodel = require('psqlorm').Model
 //在column中编辑列字段。
 
 let _table = {
-  /**
-   * @type {column}
-   * */
   column: {
-    id : {
+    /**
+     * @type {column}
+     * */
+    id: {
       type : 'varchar(12)'
     },
 
+    /**
+     * @type {column}
+     * */
+    name: {
+      type : 'varchar(30)',
+      default: ''
+    },
+
+    /**
+     * @type {column}
+     * */
     create_time: {
       type : 'bigint',
       default: 0
-    }
+    },
+    
+    /**
+     * @type {column}
+     * */
+    update_time: {
+      type : 'bigint',
+      default: 0
+    },
   },
 
   //索引
   index: [
-    'create_time'
+    'create_time',
+    'update_time'
   ],
 
   //唯一索引
   unique: [
-
+    'name'
   ]
 }
 
