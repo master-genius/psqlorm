@@ -42,7 +42,9 @@ class ${name} extends pqmodel {
 
     this.modelPath = __dirname
 
-    //主键id前缀，建议不要超过2字符，请确保前缀和生成的id长度 <= 数据库字段的最大长度。
+    //以上代码必须存在并且写在前面。
+
+    //主键id前缀，建议不要超过2字符，请确保前缀和idLen的长度 <= 数据库字段的最大长度。
     this.idPre = ''
 
     //id的长度，默认为12
@@ -51,7 +53,7 @@ class ${name} extends pqmodel {
     //默认主键名为id，并且是字符串类型，主键id会自动生成。
     //this.primaryKey = 'id'
 
-    //数据表真正的名称。
+    //数据表真正的名称，注意：postgresql不支持表名大写，更改名称请使用小写字母。
     this.tableName = '${name.toLowerCase()}'
 
     this.table = _table
