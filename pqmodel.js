@@ -163,14 +163,6 @@ class pqmodel {
     return this.orm.model(this.tableName, schema);
   }
 
-  /**
-   * @param {object|string} m 通过this.relate获取的模型实例或直接指定表名的字符串。
-   * @param {string} on join条件。
-   * @param {string} join_type 默认INNER。
-   * @param {stirng} options 默认为{}，选项，支持where、schema、pagesize、offset、order。
-   *
-   * */
-
   async join (m, on, join_type = 'INNER', options = {}) {
     
     let tname;
@@ -203,20 +195,34 @@ class pqmodel {
   }
 
   /**
-   * @param {object|string} m 通过this.relate获取的模型实例或直接指定表名的字符串。
-   * @param {string} on join条件。
-   * @param {stirng} options 默认为{}，选项，支持where、schema、pagesize、offset、order。
+   * @param m {object|string} - 通过this.relate获取的模型实例或直接指定表名的字符串。
+   * @param on {string} - join条件。
+   * @param options {stirng} - 默认为{}，选项，支持where、schema、pagesize、offset、order。
    *
    * */
-
   innerJoin (m, on, options = {}) {
     return this.join(m, on, 'INNER', options);
   }
 
+  /**
+   * @param m {object|string} 
+   *  - 通过this.relate获取的模型实例或直接指定表名的字符串
+   * @param on {string} 
+   *  - join条件
+   * @param options {stirng} 
+   *  - 默认为{}，选项，支持where、schema、pagesize、offset、order
+   *
+   * */
   leftJoin (m, on, options = {}) {
     return this.join(m, on, 'LEFT', options);
   }
 
+  /**
+   * @param m {object|string} - 通过this.relate获取的模型实例或直接指定表名的字符串。
+   * @param on {string} - join条件。
+   * @param options {stirng} - 默认为{}，选项，支持where、schema、pagesize、offset、order。
+   *
+   * */
   rightJoin (m, on, options = {}) {
     return this.join(m, on, 'RIGHT', options);
   }
@@ -246,6 +252,14 @@ class pqmodel {
    * 否则最后一个参数是schema，默认是null。
    */
 
+  /**
+   * 
+   * @param data {object} - 要插入的数据对象
+   * @param options {object}
+   *  - schema {string} 数据库schema。
+   *  - returning {string} sql语句的returning列。
+   * @returns Promise
+   */
   async insert (data, options = {schema: null}) {
 
     if (data[this.primaryKey] === undefined && this.autoId) {
@@ -267,6 +281,14 @@ class pqmodel {
     return data[this.primaryKey];
   }
 
+  /**
+   * 
+   * @param data {object} - 要插入的数据对象
+   * @param options {object}
+   *  - schema {string} 数据库schema。
+   *  - returning {string} sql语句的returning列。
+   * @returns object
+   */
   async finsert (data, options = {schema: null}) {
     if (this.beforeInsert && typeof this.beforeInsert === 'function') {
       if (false === await this.beforeInsert(data, options)) return false;
@@ -283,6 +305,14 @@ class pqmodel {
     return id;
   }
 
+  /**
+   * 
+   * @param data {array} - 要插入的数据对象
+   * @param options {object}
+   *  - schema {string} 数据库schema。
+   *  - returning {string} sql语句的returning列。
+   * @returns Promise
+   */
   async insertAll (data, options = {schema: null}) {
     if (!Array.isArray(data)) {
       return false;
@@ -317,6 +347,15 @@ class pqmodel {
     return idlist;
   }
 
+  /**
+   * 
+   * @param cond {object} - 条件
+   * @param data {object} - 要更新的数据
+   * @param options {object}
+   *  - schema {string} 数据库schema。
+   *  - returning {string} sql语句的returning列。
+   * @returns Promise
+   */
   async update (cond, data, options={schema: null}) {
 
     let h = this.model(options.schema);
@@ -329,6 +368,15 @@ class pqmodel {
     return r.rowCount;
   }
 
+  /**
+   * 
+   * @param cond {object} - 条件
+   * @param data {object} - 要更新的数据
+   * @param options {object}
+   *  - schema {string} 数据库schema。
+   *  - returning {string} sql语句的returning列。
+   * @returns Promise
+   */
   async fupdate (cond, data, options={schema: null}) {
     if (this.beforeUpdate && typeof this.beforeUpdate === 'function') {
       if (false === await this.beforeUpdate(cond, data, options)) return false;
@@ -345,6 +393,16 @@ class pqmodel {
     return count;
   }
 
+  /**
+   * 
+   * @param cond {object} - 条件
+   * @param args {object}
+   *  - schema {string} 数据库schema。
+   *  - pagesize {number} 分页大小。
+   *  - offset {number} 偏移量。
+   *  - order {string} 排序方式。
+   * @returns object
+   */
   async list (cond, args = {schema: null}) {
 
     let t = this.model(args.schema).where(cond);
@@ -367,6 +425,14 @@ class pqmodel {
 
   }
 
+  /**
+   * 
+   * @param cond {object} - 条件
+   * @param options {object}
+   *  - schema {string} 数据库schema。
+   *  - field {string|array} 返回的列，默认为selectField设置的值。
+   * @returns object
+   */
   async get (cond = {}, options = {field: null, schema: null}) {
     let r = await this.model(options.schema)
                       .where(cond)
@@ -379,6 +445,14 @@ class pqmodel {
     return r.rows[0];
   }
 
+  /**
+   * 
+   * @param cond {object} - 条件
+   * @param options {object}
+   *  - schema {string} 数据库schema。
+   *  - returning {string} sql语句的returning列。
+   * @returns Promise
+   */
   async delete (cond, options = {schema: null}) {
     let h = this.model(options.schema);
     options.returning && (h = h.returning(options.returning));
@@ -390,6 +464,14 @@ class pqmodel {
     return r.rowCount;
   }
 
+  /**
+   * 
+   * @param cond {object} - 条件
+   * @param options {object}
+   *  - schema {string} 数据库schema。
+   *  - returning {string} sql语句的returning列。
+   * @returns Promise
+   */
   async fdelete (cond, options = {schema: null}) {
     if (this.beforeDelete && typeof this.beforeDelete === 'function') {
       if (false === await this.beforeDelete(cond, options)) return false;
@@ -406,6 +488,13 @@ class pqmodel {
     return count;
   }
 
+  /**
+   * 
+   * @param cond {object} - 条件
+   * @param options {object}
+   *  - schema {string} 数据库schema。
+   * @returns Promise
+   */
   async count (cond = {}, options = {schema: null}) {
     let total = await this.model(options.schema).where(cond).count();
     return total;
@@ -451,6 +540,14 @@ class pqmodel {
       throw new Error(`！！没有column：${options.field}.`);
   }
 
+  /**
+   * 
+   * @param cond {object} - 条件
+   * @param options {object}
+   *  - schema {string} 数据库schema。
+   *  - field {string} 聚合操作的列。
+   * @returns Promise
+   */
   async max (cond = {}, options = {schema: null}) {
     if (typeof options === 'string') options = {field: options};
 
@@ -463,6 +560,14 @@ class pqmodel {
     return this._fmtNum(m, options);
   }
 
+  /**
+   * 
+   * @param cond {object} - 条件
+   * @param options {object}
+   *  - schema {string} 数据库schema。
+   *  - field {string} 聚合操作的列。
+   * @returns object
+   */
   async min (cond = {}, options = {schema: null}) {
     if (typeof options === 'string') options = {field: options};
 
@@ -475,6 +580,14 @@ class pqmodel {
     return this._fmtNum(m, options);
   }
 
+  /**
+   * 
+   * @param cond {object} - 条件
+   * @param options {object}
+   *  - schema {string} 数据库schema。
+   *  - field {string} 聚合操作的列。
+   * @returns Promise
+   */
   async avg (cond = {}, options = {schema: null}) {
     if (typeof options === 'string') options = {field: options};
 
@@ -486,6 +599,14 @@ class pqmodel {
     return this._fmtNum(m, options);
   }
 
+  /**
+   * 
+   * @param cond {object} - 条件
+   * @param options {object}
+   *  - schema {string} 数据库schema。
+   *  - field {string} 聚合操作的列。
+   * @returns Promise
+   */
   async sum (cond = {}, options = {schema: null}) {
     if (typeof options === 'string') options = {field: options};
 
@@ -521,13 +642,17 @@ class pqmodel {
    * 对于导入来说，要检查数据是否已经变化，如果字段已经变化，则根据变化情况，进行调整。
    *
    * */
-  /*
-   * @param {object} options 
-   *  - fields
-   *  - file
+  /**
+   * 
+   * @param options {object} 
+   *  - field {array|string} 导出的列。
+   *  - pagesize {number} 分页大小。
+   *  - where {object} where条件。
+   *  - offset {number} 偏移量。
+   * @returns function*
    * */
   async dataOut (options = {}) {
-    let cond = options.cond || {};
+    let cond = options.where || {};
     let total = await this.count(cond);
     let pagesize = 1000;
 
@@ -592,6 +717,11 @@ class pqmodel {
 
   } // dataOut end
   
+  /**
+   * 
+   * @param callback {function} - 接受参数为导出的数据数组。
+   * @param options {object} - 和dataOut方法的选项一致。
+   */
   async dataOutHandle (callback, options = {}) {
     if (!options || typeof options !== 'object') options = {}
 
@@ -611,6 +741,15 @@ class pqmodel {
 
   }
 
+  /**
+   * 
+   * @param options  {object} 
+   *  - data {array} 导入的数据。
+   *  - mode {string} 导入模式，默认为'strict'，支持'loose'模式。
+   *  - update {string} 更新方式，默认为'delete-insert'，支持 delete-insert|update|none。
+   *  - schmea {string} 导入数据库的schema。
+   * @returns Promise
+   */
   async dataIn (options = {}) {
     if (!options.data || !Array.isArray(options.data) ) {
       throw new Error('数据格式错误，请通过选项data传递要导入的数据，数据格式为数组。');
@@ -715,8 +854,11 @@ class pqmodel {
 
   /**
    * 
-   * @param {string} gby 
-   * @param {object} options
+   * @param gby {string} - group操作的列，多个列使用 , 连接。
+   * @param options {object}
+   *  - field string类型，返回的列，默认和参数gby一致。
+   *  - order string类型，排序方式。
+   *  - where 条件，使用object类型，参考where接口。
    * 
    */
   async group (gby, options = {}) {
@@ -726,7 +868,7 @@ class pqmodel {
 
     if (options.order) t = t.order(options.order);
 
-    let r = await t.select(options.field || this.selectField);
+    let r = await t.select(options.field || gby);
     
     if (r.rowCount > 0) {
       return r.rows;
@@ -735,6 +877,14 @@ class pqmodel {
     return [];
   }
 
+  /**
+   * 
+   * @param callback {function} - async 声明的函数，接受参数：
+   *  - db 数据库连接实例，参考Model部分。
+   *  - ret object类型，data属性作为返回数据，使用ret.throwFailed方法抛出错误终止事物。
+   * @param schema {string} 
+   * @returns 
+   */
   async transaction (callback, schema = '') {
 
     if (typeof callback !== 'function' || callback.constructor.name !== 'AsyncFunction') {
@@ -805,7 +955,6 @@ class pqmodel {
    *    },
    *    index : [
    *    ],
-   *    //唯一索引
    *    unique : [
    *    ]
    * 
@@ -816,12 +965,22 @@ class pqmodel {
    * 这时候，如果需要再次重命名，则可以修改字段的key值，并让oldName保存之前的key值。
    * 
    */
-  
-  async CreateSchema (schema) {
+  /**
+   * 
+   * @param schema {string} - 要创建的schema名称。
+   */
+  async createSchema (schema) {
     return await this.db.query(`create schema if not exists ${schema}`);
   }
 
-  async Sync (debug=false, force = false) {
+  /**
+   * 
+   * @param debug {boolean} 
+   *   - 调试模式，会输出sql以及其他提示信息。
+   * @param force {boolean} 
+   *   - 是否强制同步，默认为false，若为true则会强制把数据库改为和table结构一致。
+   */
+  async sync (debug=false, force = false) {
 
     if (!this.table) {
       console.error('没有table对象');
@@ -857,8 +1016,8 @@ class pqmodel {
       if (tmp_col.ref) {
         refarr = this._parseRef(tmp_col.ref, k);
         refmodel = require(this.modelPath + '/' + refarr[0] + '.js');
-        refm = new refmodel(this.pqorm);
-        (new refmodel(this.orm)).Sync(debug, force);
+        refm = new refmodel(this.orm);
+        await refm.sync(debug, force);
         tmp_col.type = refm.table.column[ refarr[1] ].type;
         tmp_col.references = `REFERENCES ${this.orm.schema}.${refm.tableName} (${refarr[1]})`;
         if (tmp_col.refActionDelete) {
@@ -975,6 +1134,12 @@ class pqmodel {
 
   }
 
+  /**
+   * 
+   * @param {object} data 数据对象。
+   * @param {boolean} quiet 默认为true，不抛出错误，而是删除不存在的列，为false检测到不存在的列会抛出错误。
+   * @returns this
+   */
   check (data, quiet = true) {
     let cols = this.table.column;
     for (let k in data) {
