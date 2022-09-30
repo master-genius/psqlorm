@@ -75,11 +75,11 @@ let _table = {
 class ${name} extends pqmodel {
 
   constructor (pqorm) {
+    //必须存在并且写在最前面。
     super(pqorm)
 
+    //主要用于引用外键时，用于获取当前模块的路径，也可以在外键引用ref属性上指定路径。
     this.modelPath = __dirname
-
-    //以上代码必须存在并且写在前面。
 
     //主键id前缀，建议不要超过2字符，请确保前缀和idLen的长度 <= 数据库字段的最大长度。
     this.idPre = ''
