@@ -1010,12 +1010,16 @@ class pqmodel {
     }
   
     //检测是否存在外键
-    let tmp_col, refarr, refmodel, refm;
+    let tmp_col, refarr, refmodel, refm, refModName;
     for (let k in this.table.column) {
       tmp_col = this.table.column[k];
       if (tmp_col.ref) {
         refarr = this._parseRef(tmp_col.ref, k);
-        refmodel = require(this.modelPath + '/' + refarr[0] + '.js');
+        refModName = (this.modelPath && (refarr[0].indexOf('/') < 0))
+                      ? (this.modelPath + '/' + refarr[0])
+                      : refarr[0];
+
+        refmodel = require(refModName + '.js');
         refm = new refmodel(this.orm);
         await refm.sync(debug, force);
         tmp_col.type = refm.table.column[ refarr[1] ].type;
@@ -1407,8 +1411,12 @@ class pqmodel {
       }
 
       let ind_using = '';
-      if (this.table.column[indname] && this.table.column[indname].type.toLowerCase() === 'jsonb') {
-        ind_using = ' using gin';
+      if (this.table.column[indname]) {
+        if (this.table.column[indname].type.toLowerCase() === 'jsonb') {
+          ind_using = ' using gin';
+        } else if (this.table.column[indname].indexType) {
+          ind_using = ` using ${this.table.column[indname].indexType}`;
+        }
       }
       
       await this.db.query(`create index on ${curTableName} ${ind_using}(${indname})`);
@@ -1612,8 +1620,16 @@ class pqmodel {
   //refstr model:column
   _parseRef (refstr, curColumn) {
     if (refstr.indexOf(':') > 0) {
-      return refstr.split(':').filter(p => p.length > 0);
+      let i = refstr.length - 1;
+      while (i > 0) {
+        if (refstr[i] === ':') break;
+        i--;
+      }
+      if (i === refstr.length - 1) return [refstr, curColumn];
+
+      return [refstr.substring(0, i), refstr.substring(i+1)];
     }
+
     return [refstr, curColumn];
   }
 
