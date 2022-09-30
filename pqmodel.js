@@ -1018,8 +1018,8 @@ class pqmodel {
         refModName = (this.modelPath && (refarr[0].indexOf('/') < 0))
                       ? (this.modelPath + '/' + refarr[0])
                       : refarr[0];
-
-        refmodel = require(refModName + '.js');
+        if (refModName.length < 4 || refModName.substring(refModName.length - 3) !== '.js') refModName += '.js';
+        refmodel = require(refModName);
         refm = new refmodel(this.orm);
         await refm.sync(debug, force);
         tmp_col.type = refm.table.column[ refarr[1] ].type;
