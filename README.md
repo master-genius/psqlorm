@@ -8,7 +8,8 @@ Node.js环境有一个使用非常广泛的PostgreSQL数据库扩展：pg。pg�
 
 **从5.0版本开始，它会自动安装pg扩展，之前的版本是为了简单化，没有在package.json中加入依赖声明，所以4.x版本需要自己安装pg。5.0做了很多优化调整，pqmodel中join以及transaction的参数和功能都进行了调整和升级。基本的model使用没有变化。**
 
-如果你希望使用它，或者希望学习到什么，可以看源代码，如果你希望联系我，我的QQ是1146040444，我们把它用在了一些业务系统上，在目前它在保持简洁的同时也很好的支撑了快速的开发工作。
+**7.x版本进行了整体的更新，并且是不兼容更新。接口和选项属性更加规范和一致。功能也更全面和稳定。从此版本开始支持指定外键和自动同步外键、数据的导出备份和导入接口、事务操作接口的升级等。**
+
 
 ## 安装
 
@@ -509,9 +510,9 @@ transaction不会抛出异常，相反，它会捕获异常然后设定相关数
 | dataOut(options={}) | 导出数据，返回值是生成器函数。 | 运行返回的生成器函数，并不断调用next完成所有数据的导出。 |
 | dataIn(options) | 通过选项data传递导入的数据，支持mode、update选项。 | mode默认为'strict'，也可以选择'loose'模式，表示宽松模式，此时遇到错误数据会略过。update表示更新类型，默认为'delete-insert'会先删除再插入，也可以是'update'表示更新已有数据，也可以是'none'表示不更新已存在数据。 |
 | dataOuthandle(callback, options={}) | 对dataOut的包装函数，options参考dataOut，callback表示对生成器每次返回的数据调用callback处理。 | callback接受的参数就是每次生成器返回的数据。 |
-| Sync (debug = false) | 是否调试，会输出相关信息 | 同步表 |
-| CreateSchema (schema) | 字符串 | 创建schema |
-
+| sync (debug = false) | 是否调试，会输出相关信息 | 同步表 |
+| createSchema (schema) | 字符串 | 创建schema |
+| check(data, quiet = true) | data为要插入或更新的数据对象，quiet为true表示不抛出错误。 | 检测数据的列是否和数据标结构一致。返回值为this，方便进行链式调用。 |
 
 ## 事务
 
@@ -705,3 +706,14 @@ module.exports = data_great;
 ```
 
 仅仅是以上一个文件，就可以使用get、select、delete、insert、insertAll等接口。
+
+### finsert fupdate fdelete接口
+
+**这几个接口和insert、update、delete接口参数一致。** 主要区别在于：
+
+- 调用f开头的函数会在更改数据库之前检测如果存在beforeInsert、beforeUpdate、beforeDelete接口，则会执行，执行时会使用await操作。如果返回值为false则会退出，返回值为false。
+
+- 调用f开头的函数，在数据更改后，会检测是否存在afterInsert、afterUpdate、afterDelete函数，如果存在则会执行，并且不再使用await操作，这afterXXX的函数可以异步执行。
+
+- beforeXXX、afterXXX的函数接受参数和对应的finsert、fupdate、fdelete一致。
+
