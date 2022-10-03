@@ -4,7 +4,7 @@ const mo = require ('./model.js');
 const pqmodel = require('./pqmodel');
 const pg = require('pg');
 
-var pqorm = function (db) {
+let pqorm = function (db) {
 
   if (!(this instanceof pqorm)) {
     return new pqorm(db);
@@ -18,7 +18,7 @@ var pqorm = function (db) {
     this.db = db;
   };
 
-  this.max = 2048;
+  this.max = 4096;
 
   this.pool = [];
 
@@ -40,7 +40,7 @@ var pqorm = function (db) {
       t.schema = t._schema = schema;
       t.fetchSql = false;
       t._freeLock = false;
-      t.parent = self;
+      //t.parent = self;
 
       return t;
     }

@@ -435,7 +435,8 @@ let pqorm = initORM(dbconfig);
       return ret;
     }
 
-    ret.data = a;
+    //result将会保存返回的数据，最终要在外层的transaction函数返回值里通过result属性拿到数据。
+    ret.result = a;
 
     return ret;
   });
@@ -455,7 +456,7 @@ transaction不会抛出异常，相反，它会捕获异常然后设定相关数
 
 ``` JavaScript
 {
-    //result是callback返回值的数据，如果是一个object则result指向data属性或result属性。
+    //result是callback返回值的数据，如果是一个object则result指向result属性。
     //否则result指向返回值本身。
     result : {
       id: '111',
@@ -542,10 +543,10 @@ transaction不会抛出异常，相反，它会捕获异常然后设定相关数
     //不会抛出错误。但最终事务会终止。
     ret.failed('不想执行了！')
 
-    //如果设置了data属性，则最后r得到的数据就是ooo而不是success
-    //ret.data = 'ooo'
+    //如果设置了result属性，则最后r得到的数据就是ooo而不是success
+    //ret.result = 'ooo'
 
-    //如果不设置ret.data属性，则return值作为r的结果
+    //如果不设置ret.result属性，则return值作为r的结果
     return 'success'
   })
 

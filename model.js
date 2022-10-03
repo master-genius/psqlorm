@@ -36,7 +36,12 @@ class model {
 
     this._schema = this.schema;
 
-    this.parent = myparent;
+    Object.defineProperty(this, 'parent', {
+      value: myparent,
+      enumerable: false,
+      configurable: false,
+      writable: false
+    });
 
     //用于事务处理时的锁定。
     this._freeLock = false;
@@ -62,6 +67,8 @@ class model {
     };
     
     this.last = null;
+
+    this.table = this.model;
   }
 
   init () {
@@ -100,9 +107,7 @@ class model {
   }
 
   alias (name) {
-    
     this.tableName += ` as ${name}`;
-
     return this;
   }
 
@@ -440,30 +445,26 @@ class model {
     }
 
     try {
-
       this.db = await this.odb.connect();
-
       //事务中，锁定释放。
       this._freeLock = true;
 
       await this.db.query('BEGIN');
-      
       let cret = await callback(this);
       
       if ((cret && typeof cret === 'object' && cret.ok === false) || cret === false) {
         if (cret && cret.error) throw cret.error;
 
-        let errmsg = (cret && cret.errmsg) ? cret.errmsg : 'Transaction failed.';
+        let errmsg = (cret && cret.errmsg) ? cret.errmsg : 'Transaction failed';
         throw new Error(errmsg);
       }
 
       await this.db.query('COMMIT');
     
-      finalRet.result = (cret && typeof cret === 'object') ? (cret.data || cret.result) : cret;
-
+      finalRet.result = (cret && typeof cret === 'object' && !Array.isArray(cret)) ? (cret.result || null) : cret;
     } catch (err) {
       this.db.query('ROLLBACK');
-      finalRet.errmsg = err.message;
+      finalRet.errmsg = err.message || 'Transaction failed';
       finalRet.ok = false;
       finalRet.error = err;
     } finally {
@@ -474,7 +475,6 @@ class model {
     }
     
     return finalRet;
-
   }
 
 }

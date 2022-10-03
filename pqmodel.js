@@ -881,7 +881,7 @@ class pqmodel {
    * 
    * @param callback {function} - async 声明的函数，接受参数：
    *  - db 数据库连接实例，参考Model部分。
-   *  - ret object类型，data属性作为返回数据，使用ret.throwFailed方法抛出错误终止事物。
+   *  - ret object类型，result属性作为返回数据，使用ret.throwFailed方法抛出错误终止事物。
    * @param schema {string} 
    * @returns 
    */
@@ -911,12 +911,12 @@ class pqmodel {
           ret.errmsg = errmsg;
         },
 
-        data: null
+        result: null
       };
 
-      let r = await callback(db.model(this.tableName), ret);
+      let r = await callback(db.table(this.tableName), ret);
 
-      if (r && !ret.data && ret.ok) ret.data = r;
+      if (r && !ret.result && ret.ok) ret.result = r;
 
       return ret;
     }, schema);
