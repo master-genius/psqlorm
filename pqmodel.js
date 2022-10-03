@@ -189,7 +189,7 @@ class pqmodel {
 
     options.order && (tj = tj.order(options.order));
 
-    let r = await tj.select(options.selectField || this.selectField);
+    let r = await tj.select(options.field || this.selectField);
 
     return r.rows;
   }
@@ -325,9 +325,7 @@ class pqmodel {
         if (data[i][this.primaryKey] === undefined) {
           data[i].id = this.makeId();
         }
-
         idlist.push(data[i].id);
-
       }
     }
     

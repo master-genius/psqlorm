@@ -86,7 +86,8 @@ pqorm.prototype.maxPool = function (n = null) {
   this.max = n;
 };
 
-pqorm.initORM = (config) => {
+pqorm.initORM = (config, schema = null) => {
+  if (schema) this.schema = schema;
   return new pqorm(new pg.Pool(config));
 };
 

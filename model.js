@@ -63,7 +63,8 @@ class model {
       offset : 0,
       join : '',
       group: '',
-      returning: ''
+      returning: '',
+      alias: ''
     };
     
     this.last = null;
@@ -75,6 +76,7 @@ class model {
     this.sqlUnit.command = '';
     this.sqlUnit.values = '';
     this.sqlUnit.table = '';
+    this.sqlUnit.alias = '';
     this.sqlUnit.fields = '';
     this.sqlUnit.where = '';
     this.sqlUnit.limit = '';
@@ -86,7 +88,7 @@ class model {
     this.last = null;
   }
 
-  makeQuoteTag (len = 3) {
+  makeQuoteTag (len = 5) {
     return '$_' + randstring(len) + '_$';
   }
 
@@ -107,7 +109,7 @@ class model {
   }
 
   alias (name) {
-    this.tableName += ` as ${name}`;
+    name && (this.alias = name);
     return this;
   }
 
@@ -237,8 +239,13 @@ class model {
     return this;
   }
 
-  order (ostr) {
-    this.sqlUnit.order = `ORDER BY ${ostr} `;
+  order (ostr, otype = '') {
+    if (this.sqlUnit.order) {
+      this.sqlUnit.order += `,${ostr} ${otype}`;
+    } else {
+      this.sqlUnit.order = `ORDER BY ${ostr} ${otype}`;
+    }
+
     return this;
   }
 
@@ -264,8 +271,10 @@ class model {
   }
 
   psql() {
-    var sql = '';
-    var schemaTable = `${this.schema}.${this.tableName}`;
+    let sql = '';
+    let schemaTable = `${this.schema}.${this.tableName}`;
+
+    if (this.sqlUnit.alias) schemaTable += ` as ${this.sqlUnit.alias}`;
 
     switch (this.sqlUnit.command) {
       case 'SELECT':

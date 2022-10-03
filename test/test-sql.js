@@ -73,6 +73,8 @@ let pm = new TestModel(m);
                 },
                 uncode : ['12345', '10086', '10085'],
               })
+              .order('create_time', 'DESC')
+              .order('weight ASC')
               .select();
 
   console.log(r);
