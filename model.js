@@ -1,28 +1,14 @@
 'use strict';
 
-/**
- * 早晚有一天，需要更好的模块注入管理的方式，而不是全部抽离出npm包。
- * 在目前，这还不是一个十分必要的需求，通过复制代码即可得到轻便并且没有任何外部依赖的功能。
- */
+const rendstring = require('./randstring.js');
+const makeId = require('./makeId.js');
+
 let saltArr = [
   'o', 'u', 'v', 'x', 'w', 'z', 
   '_', '_', '_', 'x', 'x', 'o',
   'o', 'i', 'i', 'p', 'y', '_',
   'x', 'x', '_', 'q', 'o', '_'
 ];
-
-function randstring (length = 5) {
-
-  let saltstr = '';
-  let ind = 0;
-
-  for(let i=0; i<length; i++) {
-    ind = parseInt( Math.random() * saltArr.length);
-    saltstr += saltArr[ ind ];
-  }
-
-  return saltstr;
-}
 
 class model {
 
@@ -32,13 +18,20 @@ class model {
 
     this.tableName = tableName;
 
-    this.schema = schema || 'public';
+    this.__schema__ = schema || 'public';
 
-    this._schema = this.schema;
+    this._schema = this.__schema__;
 
     Object.defineProperty(this, 'parent', {
       value: myparent,
       enumerable: false,
+      configurable: false,
+      writable: false
+    });
+
+    Object.defineProperty(this, 'makeId', {
+      value: makeId,
+      enumerable: true,
       configurable: false,
       writable: false
     });
@@ -70,6 +63,9 @@ class model {
     this.last = null;
 
     this.table = this.model;
+
+    this.__auto_id__ = false;
+    this.__primary_key__ = '';
   }
 
   init () {
@@ -86,10 +82,36 @@ class model {
     this.sqlUnit.group = '';
     this.sqlUnit.returning = '';
     this.last = null;
+    this.__auto_id__ = false;
+    this.__primary_key__ = '';
   }
 
   makeQuoteTag (len = 5) {
-    return '$_' + randstring(len) + '_$';
+    return '$_' + randstring(len, saltArr) + '_$';
+  }
+
+  getSchema () {
+    return this.__schema__;
+  }
+
+  schema (name) {
+    this.__schema__ = name;
+    return this;
+  }
+
+  autoId (b = true) {
+    this.__auto_id__ = b;
+    return this;
+  }
+
+  returningPrimary () {
+    if (this.__primary_key__) this.returning(th.__primary_key__);
+    return this;
+  }
+
+  primaryKey (k) {
+    this.__primary_key__ = k;
+    return this;
   }
 
   model (tableName = '', schema = null) {
@@ -98,14 +120,18 @@ class model {
     }
 
     if (schema) {
-      this.schema = schema;
+      this.__schema__ = schema;
     }
+
+    this.__auto_id__ = false;
+    this.__primary_key__ = '';
 
     return this;
   }
 
   resetSchema () {
-    this.schema = this._schema;
+    this.__schema__ = this._schema;
+    return this;
   }
 
   alias (name) {
@@ -149,8 +175,7 @@ class model {
    * 
    * @param {string | object} cond 条件，如果是字符串，args表示字符串中?要替换的参数
    * @param {array} args 
-   */
-  
+   */  
   where (cond, args = []) {
     if (typeof cond === 'string') {
       let whstr = '';
@@ -179,7 +204,6 @@ class model {
       let t = null;
       let vals = [];
       for (let k in cond) {
-
         if (k[0] === '[' && k.length > 1) {
           this.where(k.substring(1, k.length-1), cond[k]);
           continue;
@@ -197,17 +221,12 @@ class model {
         t = typeof cond[k];
 
         if (t === 'number' || t === 'string') {
-
           tmp.push(`${k}=${this.qoute(cond[k])}`);
-
         } else if (t === 'object') {
-          
           for (let ks in cond[k]) {
             tmp.push(`${k} ${ks} ${this.qoute(cond[k][ks])}`);
           }
-
         }
-
       }
       
       if (tmp.length > 0) {
@@ -222,7 +241,7 @@ class model {
   }
 
   join (table, on, join_type = 'INNER') {
-    this.sqlUnit.join += `${join_type} JOIN ${this.schema}.${table} ON ${on} `;
+    this.sqlUnit.join += `${join_type} JOIN ${this.__schema__}.${table} ON ${on} `;
     return this;
   }
 
@@ -260,24 +279,33 @@ class model {
   }
 
   returning (cols) {
+    let retstr;
+
     if (Array.isArray(cols))
-      this.sqlUnit.returning = ' returning ' + cols.join(',');
+      retstr = cols.join(',');
     else if (typeof cols === 'string' && cols !== '')
-      this.sqlUnit.returning = ' returning ' + cols;
+      retstr = cols;
     else
-      this.sqlUnit.returning = '';
+      retstr = '';
+
+    if (this.sqlUnit.returning) {
+      if (retstr) this.sqlUnit.returning += ',' + retstr;
+    } else {
+      this.sqlUnit.returning = ' returning ' + retstr;
+    }
 
     return this;
   }
 
   psql() {
     let sql = '';
-    let schemaTable = `${this.schema}.${this.tableName}`;
+    let schemaTable = `${this.__schema__}.${this.tableName}`;
 
     if (this.sqlUnit.alias) schemaTable += ` as ${this.sqlUnit.alias}`;
 
     switch (this.sqlUnit.command) {
       case 'SELECT':
+      case 'GET':
         sql = `SELECT ${this.sqlUnit.fields} FROM ${schemaTable} ${this.sqlUnit.join} `
             + `${this.sqlUnit.where.length > 0 ? 'WHERE ' : ''}${this.sqlUnit.where} `
             + `${this.sqlUnit.group}${this.sqlUnit.order}${this.sqlUnit.limit};`;
@@ -301,6 +329,8 @@ class model {
 
   async exec () {
     let sql = this.psql();
+    let comm = this.sqlUnit.command;
+
     this.init();
     if (this.fetchSql) {
       return sql;
@@ -308,6 +338,19 @@ class model {
 
     try {
       let r = await this.db.query(sql);
+      switch (comm) {
+        case 'SELECT':
+          return r.rows;
+        case 'GET':
+          return r.rowCount > 0 ? r.rows[0] : null;
+
+        case 'INSERT':
+        case 'DELETE':
+        case 'UPDATE':
+          if (r.rows.length > 0) return r.rows;
+          return r.rowCount;
+      }
+
       return r;
     } catch (err) {
       throw err;
@@ -319,13 +362,18 @@ class model {
     }
   }
 
-  async select (fields = '*') {
-    this.sqlUnit.command = 'SELECT';
+  async get (fields = '*') {
+    return this.select(fields, true);
+  }
+
+  async select (fields = '*', first = false) {
+    this.sqlUnit.command = first ? 'GET' : 'SELECT';
     if ( Array.isArray(fields) ) {
       this.sqlUnit.fields = fields.join(',');
     } else if (typeof fields === 'string') {
       this.sqlUnit.fields = fields;
     }
+
     return this.exec();
   }
 
@@ -335,6 +383,10 @@ class model {
   }
 
   async insert (data) {
+    if (this.__auto_id__ && this.__primary_key__) {
+      data[this.__primary_key__] = makeId();
+    }
+
     let fields = Object.keys(data);
     this.sqlUnit.command = 'INSERT';
     this.sqlUnit.fields = `(${fields.join(',')})`;
@@ -360,6 +412,10 @@ class model {
     let vallist = [];
 
     for (let i=0; i < data.length; i++) {
+      if (this.__auto_id__ && this.__primary_key__) {
+        data[i][this.__primary_key__] = makeId();
+      }
+
       vals = [];
       for (let k in data[i]) {
         vals.push(`${this.qoute(data[i][k])}`);
@@ -448,9 +504,19 @@ class model {
     
     let finalRet = {
       result : null,
-      ok : true,
-      errmsg : '',
-      error: null
+      ok : null,
+      message : '',
+      error: null,
+      throwFailed: (err = 'Transaction failed') => {
+        finalRet.ok = false;
+        let ty = typeof err;
+        if (ty !== 'object') throw new Error(err);
+        throw err;
+      },
+      failed: (errmsg = 'Transaction failed') => {
+        finalRet.ok = false;
+        finalRet.errmsg = errmsg;
+      },
     }
 
     try {
@@ -459,21 +525,18 @@ class model {
       this._freeLock = true;
 
       await this.db.query('BEGIN');
-      let cret = await callback(this);
       
-      if ((cret && typeof cret === 'object' && cret.ok === false) || cret === false) {
-        if (cret && cret.error) throw cret.error;
-
-        let errmsg = (cret && cret.errmsg) ? cret.errmsg : 'Transaction failed';
-        throw new Error(errmsg);
+      let rval = await callback(this, finalRet);
+      if (!finalRet.ok) {
+        throw new Error(finalRet.message);
       }
-
       await this.db.query('COMMIT');
-    
-      finalRet.result = (cret && typeof cret === 'object' && !Array.isArray(cret)) ? (cret.result || null) : cret;
+
+      ;(finalRet.ok === null) && (finalRet.ok = true);
+      ;(rval !== undefined && finalRet.result === null) && (finalRet.result = rval);
     } catch (err) {
       this.db.query('ROLLBACK');
-      finalRet.errmsg = err.message || 'Transaction failed';
+      finalRet.message = err.message || 'Transaction failed';
       finalRet.ok = false;
       finalRet.error = err;
     } finally {

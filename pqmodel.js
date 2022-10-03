@@ -1,30 +1,6 @@
 'use strict';
 
-let saltArr = [
-  'a','b','c','d','e','f','g',
-  'h','i','j','k','l','m','n',
-  'o','p','q','r','s','t','u',
-  'v','w','x','y','z','1','2',
-  '3','4','5','6','7','8','9'
-];
-
-function randstring (length = 8) {
-
-  let saltstr = '';
-  let ind = 0;
-
-  for(let i=0; i<length; i++) {
-    ind = parseInt( Math.random() * saltArr.length);
-    saltstr += saltArr[ ind ];
-  }
-
-  return saltstr;
-}
-
-function nrand (f, t) {
-  let discount = t - f;
-  return parseInt((Math.random() * discount) + f);
-}
+const makeId = require('./makeId.js');
 
 class pqmodel {
 
@@ -108,6 +84,8 @@ class pqmodel {
       });
     });
 
+    this.makeId = makeId;
+
     if (!global.__psqlorm_relate__) global.__psqlorm_relate__ = {};
 
     process.nextTick(async () => {
@@ -161,6 +139,25 @@ class pqmodel {
 
   model (schema = null) {
     return this.orm.model(this.tableName, schema);
+  }
+
+  /**
+   * 
+   * @param {(string|object)} cond 条件，如果是字符串，args表示字符串中?要替换的参数
+   * @param {array} args 
+   */
+  where (cond, args = []) {
+    let m = this.orm.model(this.tableName);
+    m.__auto_id__ = this.autoId;
+    m.__primary_key__ = this.primaryKey;
+    return m.where(cond, args);
+  }
+
+  schema (name) {
+    let m = this.orm.model(this.tableName, name);
+    m.__auto_id__ = this.autoId;
+    m.__primary_key__ = this.primaryKey;
+    return m;
   }
 
   async join (m, on, join_type = 'INNER', options = {}) {
@@ -227,26 +224,6 @@ class pqmodel {
     return this.join(m, on, 'RIGHT', options);
   }
 
-  makeId () {
-    
-    let tmstr = Math.random().toString(16).substring(2);
-  
-    if (tmstr.length < this.idLen) {
-      tmstr = `${tmstr}${randstring(this.idLen - tmstr.length)}`;
-    }
-  
-    if (tmstr.length > this.idLen) {
-      tmstr = tmstr.substring(tmstr.length - this.idLen);
-    }
-
-    if (this.idPre) {
-      return `${this.idPre}${tmstr}`;
-    }
-
-    return tmstr;
-
-  }
-
   /**
    * 在动态支持schema的参数设计上，一旦参数超过3个则会把后面的参数以object的形式提供，减少参数传递复杂度。
    * 否则最后一个参数是schema，默认是null。
@@ -279,30 +256,6 @@ class pqmodel {
     if (options.returning) return r.rows[0];
 
     return data[this.primaryKey];
-  }
-
-  /**
-   * 
-   * @param data {object} - 要插入的数据对象
-   * @param options {object}
-   *  - schema {string} 数据库schema。
-   *  - returning {string} sql语句的returning列。
-   * @returns object
-   */
-  async finsert (data, options = {schema: null}) {
-    if (this.beforeInsert && typeof this.beforeInsert === 'function') {
-      if (false === await this.beforeInsert(data, options)) return false;
-    }
-
-    let id = await this.insert(data, options);
-
-    if (!id) return false;
-
-    if (this.afterInsert && typeof this.afterInsert === 'function') {
-      this.afterInsert(id, data, options);
-    }
-
-    return id;
   }
 
   /**
@@ -364,31 +317,6 @@ class pqmodel {
     if (options.returning) return r.rows;
 
     return r.rowCount;
-  }
-
-  /**
-   * 
-   * @param cond {object} - 条件
-   * @param data {object} - 要更新的数据
-   * @param options {object}
-   *  - schema {string} 数据库schema。
-   *  - returning {string} sql语句的returning列。
-   * @returns Promise
-   */
-  async fupdate (cond, data, options={schema: null}) {
-    if (this.beforeUpdate && typeof this.beforeUpdate === 'function') {
-      if (false === await this.beforeUpdate(cond, data, options)) return false;
-    }
-
-    let count = await this.update(cond, data, options);
-
-    if ((typeof count === 'number' && count <= 0) || count.length <= 0) return 0;
-
-    if (this.afterUpdate && typeof this.afterUpdate === 'function') {
-      this.afterUpdate(count, cond, data, options);
-    }
-
-    return count;
   }
 
   /**
@@ -460,30 +388,6 @@ class pqmodel {
     if (options.returning) return r.rows;
 
     return r.rowCount;
-  }
-
-  /**
-   * 
-   * @param cond {object} - 条件
-   * @param options {object}
-   *  - schema {string} 数据库schema。
-   *  - returning {string} sql语句的returning列。
-   * @returns Promise
-   */
-  async fdelete (cond, options = {schema: null}) {
-    if (this.beforeDelete && typeof this.beforeDelete === 'function') {
-      if (false === await this.beforeDelete(cond, options)) return false;
-    }
-
-    let count = await this.delete(cond, options);
-
-    if ((typeof count === 'number' && count <= 0) || count.length <= 0) return 0;
-
-    if (this.afterDelete && typeof this.afterDelete === 'function') {
-      this.afterDelete(count, cond, options);
-    }
-
-    return count;
   }
 
   /**
@@ -698,7 +602,7 @@ class pqmodel {
         ret = await self.list(cond, {
           offset,
           pagesize,
-          selectField: fields,
+          field: fields,
           schema
         });
         
@@ -884,39 +788,12 @@ class pqmodel {
    * @returns 
    */
   async transaction (callback, schema = '') {
-
     if (typeof callback !== 'function' || callback.constructor.name !== 'AsyncFunction') {
       throw new Error(`transaction 执行的回调函数必须使用 async 声明。`);
     }
 
-    return await this.orm.transaction(async (db) => {
-      let ret = {
-        ok: true,
-        errmsg : '',
-
-        throwFailed: (err = 'transaction failed.') => {
-          ret.ok = false;
-
-          let ty = typeof err;
-
-          if (ty !== 'object') throw new Error(err);
-          
-          throw err;
-        },
-
-        failed: (errmsg = 'transaction failed.') => {
-          ret.ok = false;
-          ret.errmsg = errmsg;
-        },
-
-        result: null
-      };
-
-      let r = await callback(db.table(this.tableName), ret);
-
-      if (r && !ret.result && ret.ok) ret.result = r;
-
-      return ret;
+    return await this.orm.transaction(async (db, handle) => {
+      return await callback(db.table(this.tableName), handle);
     }, schema);
 
   }
@@ -978,7 +855,7 @@ class pqmodel {
    * @param force {boolean} 
    *   - 是否强制同步，默认为false，若为true则会强制把数据库改为和table结构一致。
    */
-  async sync (debug=false, force = false) {
+  async sync (debug=false, force=false) {
 
     if (!this.table) {
       console.error('没有table对象');

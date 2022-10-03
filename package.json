@@ -1,6 +1,6 @@
 {
   "name": "psqlorm",
-  "version": "7.2.8",
+  "version": "8.0.0-bata",
   "description": "orm for postgresql",
   "main": "pqorm.js",
   "scripts": {
