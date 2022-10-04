@@ -1,6 +1,6 @@
 'use strict';
 
-const rendstring = require('./randstring.js');
+const randstring = require('./randstring.js');
 const makeId = require('./makeId.js');
 
 let saltArr = [
@@ -10,9 +10,30 @@ let saltArr = [
   'x', 'x', '_', 'q', 'o', '_'
 ];
 
-class model {
+let commandTable = {
+  INSERT: '1',
+  INSERTS: '2',
+  GET: '3',
+  SELECT: '4',
+  UPDATE: '5',
+  DELETE: '6'
+}
 
-  constructor (db, tableName = '', schema = 'public', myparent = null) {
+let beforeEventName = {};
+let eventName = {};
+
+beforeEventName[ commandTable.INSERT ] = 'beforeInsert';
+beforeEventName[ commandTable.INSERTS ] = 'beforeInsert';
+beforeEventName[ commandTable.UPDATE ] = 'beforeUpdate';
+beforeEventName[ commandTable.DELETE ] = 'beforeDelete';
+eventName[ commandTable.INSERT ] = 'insert';
+eventName[ commandTable.INSERTS ] = 'insert';
+eventName[ commandTable.UPDATE ] = 'update';
+eventName[ commandTable.DELETE ] = 'delete';
+
+class Model {
+
+  constructor (db, tableName = '', schema = 'public', myparent = null, trigger = null) {
     this.odb = db;
     this.db = db;
 
@@ -36,6 +57,8 @@ class model {
       writable: false
     });
 
+    this.tableTrigger = trigger;
+
     //用于事务处理时的锁定。
     this._freeLock = false;
 
@@ -46,7 +69,7 @@ class model {
     this.lstag = this.stag.substring(0, this.stag.length - 1);
 
     this.sqlUnit = {
-      command : '',
+      command : 0,
       values : '',
       fields : '',
       table : '',
@@ -63,13 +86,18 @@ class model {
     this.last = null;
 
     this.table = this.model;
-
+    this.__id_len__ = 12;
+    this.__id_pre__ = '';
     this.__auto_id__ = false;
-    this.__primary_key__ = '';
+    this.__primary_key__ = 'id';
+    this.__trigger_before__ = false;
+    this.__trigger_after__ = false;
+    this.__trigger_commit__ = false;
+    this.commitTriggers = [];
   }
 
   init () {
-    this.sqlUnit.command = '';
+    this.sqlUnit.command = 0;
     this.sqlUnit.values = '';
     this.sqlUnit.table = '';
     this.sqlUnit.alias = '';
@@ -82,12 +110,35 @@ class model {
     this.sqlUnit.group = '';
     this.sqlUnit.returning = '';
     this.last = null;
+    this.__trigger_before__ = false;
+    this.__trigger_after__ = false;
+    this.__trigger_commit__ = false;
+  }
+
+  resetIdInfo () {
     this.__auto_id__ = false;
-    this.__primary_key__ = '';
+    this.__primary_key__ = 'id';
+    this.__id_len__ = 12;
+    this.__id_pre__ = '';
   }
 
   makeQuoteTag (len = 5) {
     return '$_' + randstring(len, saltArr) + '_$';
+  }
+
+  triggerBefore (on = true) {
+    this.__trigger_before__ = on;
+    return this;
+  }
+
+  trigger (on = true) {
+    this.__trigger_after__ = on;
+    return this;
+  }
+
+  triggerCommit (on = true) {
+    this.__trigger_commit__ = on;
+    return this;
   }
 
   getSchema () {
@@ -101,6 +152,16 @@ class model {
 
   autoId (b = true) {
     this.__auto_id__ = b;
+    return this;
+  }
+
+  setIdLen (ilen) {
+    if (typeof ilen === 'number' && ilen > 6) this.__id_len__ = ilen;
+    return this;
+  }
+
+  setIdPre (pre = '') {
+    this.__id_pre__ = pre;
     return this;
   }
 
@@ -122,9 +183,6 @@ class model {
     if (schema) {
       this.__schema__ = schema;
     }
-
-    this.__auto_id__ = false;
-    this.__primary_key__ = '';
 
     return this;
   }
@@ -304,32 +362,36 @@ class model {
     if (this.sqlUnit.alias) schemaTable += ` as ${this.sqlUnit.alias}`;
 
     switch (this.sqlUnit.command) {
-      case 'SELECT':
-      case 'GET':
+      case commandTable.SELECT:
+      case commandTable.GET:
         sql = `SELECT ${this.sqlUnit.fields} FROM ${schemaTable} ${this.sqlUnit.join} `
             + `${this.sqlUnit.where.length > 0 ? 'WHERE ' : ''}${this.sqlUnit.where} `
             + `${this.sqlUnit.group}${this.sqlUnit.order}${this.sqlUnit.limit};`;
         break;
 
-      case 'DELETE':
+      case commandTable.DELETE:
         sql = `DELETE FROM ${schemaTable} ${this.sqlUnit.where.length > 0 ? 'WHERE ' : ''}${this.sqlUnit.where}${this.sqlUnit.returning};`;
         break;
 
-      case 'UPDATE':
+      case commandTable.UPDATE:
         sql = `UPDATE ${schemaTable} SET ${this.sqlUnit.values} ${this.sqlUnit.where.length > 0 ? ' WHERE ' : ''} ${this.sqlUnit.where}${this.sqlUnit.returning};`;
         break;
 
-      case 'INSERT':
+      case commandTable.INSERT:
+      case commandTable.INSERTS:
         sql = `INSERT INTO ${schemaTable} ${this.sqlUnit.fields} VALUES ${this.sqlUnit.values}${this.sqlUnit.returning};`;
         break;
-
     }
+
     return sql;
   }
 
   async exec () {
     let sql = this.psql();
     let comm = this.sqlUnit.command;
+    let is_trigger_b = this.__trigger_before__;
+    let is_trigger = this.__trigger_after__;
+    let is_trigger_m = this.__trigger_commit__;
 
     this.init();
     if (this.fetchSql) {
@@ -337,21 +399,52 @@ class model {
     }
 
     try {
-      let r = await this.db.query(sql);
-      switch (comm) {
-        case 'SELECT':
-          return r.rows;
-        case 'GET':
-          return r.rowCount > 0 ? r.rows[0] : null;
+      let ename;
 
-        case 'INSERT':
-        case 'DELETE':
-        case 'UPDATE':
-          if (r.rows.length > 0) return r.rows;
-          return r.rowCount;
+      if (is_trigger_b && this.tableTrigger) {
+        ename = beforeEventName[comm];
+        ename && this.tableTrigger.emit(ename, this.__schema__, this.tableName, ename, sql, null);
       }
 
-      return r;
+      let r = await this.db.query(sql);
+
+      let rdata;
+
+      switch (comm) {
+        case commandTable.SELECT:
+          rdata = r.rows || [];
+          break;
+
+        case commandTable.GET:
+          rdata = r.rowCount > 0 ? r.rows[0] : null;
+          break;
+
+        case commandTable.INSERT:
+          rdata = r.rows.length > 0 ? r.rows[0] : r.rowCount;
+          break;
+
+        case commandTable.INSERTS:
+        case commandTable.DELETE:
+        case commandTable.UPDATE:
+          if (r.rows.length > 0) {
+            rdata = (r.rows.length === 1 ? r.rows[0] : r.rows);
+          } else {
+            rdata = r.rowCount;
+          }
+      }
+
+      if ((is_trigger || is_trigger_m) && this.tableTrigger) {
+        ename = eventName[comm];
+        if (is_trigger_m) {
+          this.commitTriggers.push([
+            this.__schema__, this.tableName, ename, sql, rdata
+          ]);
+        } else {
+          ename && this.tableTrigger.emit(ename, this.__schema__, this.tableName, ename, sql, rdata);
+        }
+      }
+
+      return rdata !== undefined ? rdata : r;
     } catch (err) {
       throw err;
     } finally {
@@ -367,7 +460,7 @@ class model {
   }
 
   async select (fields = '*', first = false) {
-    this.sqlUnit.command = first ? 'GET' : 'SELECT';
+    this.sqlUnit.command = first ? commandTable.GET : commandTable.SELECT;
     if ( Array.isArray(fields) ) {
       this.sqlUnit.fields = fields.join(',');
     } else if (typeof fields === 'string') {
@@ -378,17 +471,20 @@ class model {
   }
 
   async delete () {
-    this.sqlUnit.command = 'DELETE';
+    this.sqlUnit.command = commandTable.DELETE;
     return this.exec();
   }
 
   async insert (data) {
-    if (this.__auto_id__ && this.__primary_key__) {
-      data[this.__primary_key__] = makeId();
+    if (this.__auto_id__ 
+      && this.__primary_key__ 
+      && data[this.__primary_key__] === undefined)
+    {
+      data[this.__primary_key__] = makeId(this.__id_len__, this.__id_pre__);
     }
 
     let fields = Object.keys(data);
-    this.sqlUnit.command = 'INSERT';
+    this.sqlUnit.command = commandTable.INSERT;
     this.sqlUnit.fields = `(${fields.join(',')})`;
     let vals = [];
     for (let k in data) {
@@ -403,7 +499,14 @@ class model {
       throw new Error('data must be array and length > 0');
     }
 
-    this.sqlUnit.command = 'INSERT';
+    if (this.__auto_id__ && this.__primary_key__) {
+      for (let i = 0; i < data.length; i++) {
+        if (data[i][this.__primary_key__] === undefined)
+          data[i][this.__primary_key__] = makeId(this.__id_len__, this.__id_pre__);
+      }
+    }
+
+    this.sqlUnit.command = commandTable.INSERTS;
     let fields = Object.keys(data[0]);
 
     this.sqlUnit.fields = `(${fields.join(',')})`;
@@ -412,10 +515,6 @@ class model {
     let vallist = [];
 
     for (let i=0; i < data.length; i++) {
-      if (this.__auto_id__ && this.__primary_key__) {
-        data[i][this.__primary_key__] = makeId();
-      }
-
       vals = [];
       for (let k in data[i]) {
         vals.push(`${this.qoute(data[i][k])}`);
@@ -429,7 +528,7 @@ class model {
   }
 
   async update (data) {
-    this.sqlUnit.command = 'UPDATE';
+    this.sqlUnit.command = commandTable.UPDATE;
     if (typeof data === 'string') {
       this.sqlUnit.values = data;
     } else {
@@ -451,8 +550,8 @@ class model {
   }
 
   async count () {
-    let r = await this.select('COUNT(*) as total');
-    return parseInt(r.rows[0].total);
+    let r = await this.get('COUNT(*) as total');
+    return parseInt(r.total);
   }
 
   toValue (val, type, prec = 0) {
@@ -473,28 +572,42 @@ class model {
   }
 
   async avg (field, to = '', prec = 1) {
-    let r = await this.select(`avg(${field}) as average`);
-    if (to) return this.toValue(r.rows[0].average, to, prec);
+    let r = await this.get(`avg(${field}) as average`);
+    if (to) return this.toValue(r.average, to, prec);
 
-    return r.rows[0].average;
+    return r.average;
   }
 
   async max (field, to = '', prec = 1) {
-    let r = await this.select(`max(${field}) as m`);
-    if (to) return this.toValue(r.rows[0].m, to, prec);
-    return r.rows[0].m;
+    let r = await this.get(`max(${field}) as m`);
+    if (to) return this.toValue(r.m, to, prec);
+    return r.m;
   }
 
   async min (field, to = '', prec = 1) {
-    let r = await this.select(`min(${field}) as m`);
-    if (to) return this.toValue(r.rows[0].m, to, prec);
-    return r.rows[0].m;
+    let r = await this.get(`min(${field}) as m`);
+    if (to) return this.toValue(r.m, to, prec);
+    return r.m;
   }
 
   async sum (field, to = '', prec = 1) {
-    let r = await this.select(`sum(${field}) as sum_value`);
-    if (to) return this.toValue(r.rows[0].sum_value, to, prec);
-    return r.rows[0].sum_value;
+    let r = await this.get(`sum(${field}) as sum_value`);
+    if (to) return this.toValue(r.sum_value, to, prec);
+    return r.sum_value;
+  }
+
+  /**
+   * 
+   * @param {object} db 数据库连接的pg.Client客户端实例
+   * @returns {this}
+   */
+  bind (db) {
+    if (db.constructor.name === 'Model' || db.db) {
+      this.db = db.db;
+    } else {
+      this.db = db;
+    }
+    return this;
   }
 
   async transaction (callback) {
@@ -515,7 +628,7 @@ class model {
       },
       failed: (errmsg = 'Transaction failed') => {
         finalRet.ok = false;
-        finalRet.errmsg = errmsg;
+        finalRet.message = errmsg;
       },
     }
 
@@ -527,10 +640,21 @@ class model {
       await this.db.query('BEGIN');
       
       let rval = await callback(this, finalRet);
-      if (!finalRet.ok) {
+      if (finalRet.ok === false) {
         throw new Error(finalRet.message);
       }
+
       await this.db.query('COMMIT');
+
+      if (this.commitTriggers.length > 0 && this.tableTrigger) {
+        let tlen = this.commitTriggers.length;
+        let tmp;
+        for (let i = 0; i < tlen; i++) {
+          tmp = this.commitTriggers[i];
+          // 0:schema 1:table 2:evtname 3:sql 4:data
+          this.tableTrigger.emit(tmp[2], tmp[0], tmp[1], tmp[2], tmp[3], tmp[4]);
+        }
+      }
 
       ;(finalRet.ok === null) && (finalRet.ok = true);
       ;(rval !== undefined && finalRet.result === null) && (finalRet.result = rval);
@@ -551,4 +675,4 @@ class model {
 
 }
 
-module.exports = model;
+module.exports = Model;

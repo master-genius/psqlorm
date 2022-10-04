@@ -3,6 +3,7 @@
 const mo = require ('./model.js');
 const pqmodel = require('./pqmodel');
 const pg = require('pg');
+const TableTrigger = require('./tableTrigger.js');
 
 let pqorm = function (db) {
 
@@ -27,6 +28,8 @@ let pqorm = function (db) {
   this.free = (mdb) => {
     if (self.pool.length < self.max) {
       mdb.init();
+      mdb.resetIdInfo();
+      mdb.commitTriggers = [];
       self.pool.push(mdb);
     }
   };
@@ -37,16 +40,17 @@ let pqorm = function (db) {
       
       t.odb = t.db = self.db;
       t.tableName = tablename;
-      t.schema = t._schema = schema;
+      t.__schema__ = t._schema = schema;
       t.fetchSql = false;
       t._freeLock = false;
-      //t.parent = self;
 
       return t;
     }
 
     return null;
   };
+
+  this.tableTrigger = new TableTrigger();
 
 };
 
@@ -62,7 +66,7 @@ pqorm.prototype.model = function (tablename, schema = '') {
     return mdb;
   }
 
-  return new mo(this.db, tablename, schema || this.schema, this);
+  return new mo(this.db, tablename, schema || this.schema, this, this.tableTrigger);
 };
 
 pqorm.prototype.transaction = async function (callback, schema = '') {
@@ -73,7 +77,9 @@ pqorm.prototype.transaction = async function (callback, schema = '') {
     return m.transaction(callback);
   }
 
-  return (new mo(this.db, '', schema || this.schema, this)).transaction(callback);
+  m = new mo(this.db, '', schema || this.schema, this, this.tableTrigger);
+
+  return m.transaction(callback);
 };
 
 pqorm.prototype.end = function () {
@@ -94,4 +100,3 @@ pqorm.initORM = (config, schema = null) => {
 pqorm.Model = pqmodel;
 
 module.exports = pqorm;
-

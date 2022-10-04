@@ -1,6 +1,6 @@
 {
   "name": "psqlorm",
-  "version": "8.0.0-bata",
+  "version": "8.0.2",
   "description": "orm for postgresql",
   "main": "pqorm.js",
   "scripts": {
@@ -24,7 +24,9 @@
     "model",
     "pg",
     "postgresql",
-    "postgres"
+    "postgres",
+    "backend",
+    "database"
   ],
   "author": "BraveWang",
   "license": "ISC",

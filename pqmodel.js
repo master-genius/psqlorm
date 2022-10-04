@@ -2,7 +2,7 @@
 
 const makeId = require('./makeId.js');
 
-class pqmodel {
+class PostgreModel {
 
   constructor (pqorm = null) {
     if (pqorm) {
@@ -84,6 +84,13 @@ class pqmodel {
       });
     });
 
+    Object.defineProperty(this, '__trigger__', {
+      value: {},
+      enumerable: false,
+      configurable: false,
+      writable: true
+    });
+
     this.makeId = makeId;
 
     if (!global.__psqlorm_relate__) global.__psqlorm_relate__ = {};
@@ -100,6 +107,7 @@ class pqmodel {
 
   async __init__ () {
     this.relate();
+    this.initTrigger();
 
     if (this.init && typeof this.init === 'function') {
       setTimeout(async () => {
@@ -108,9 +116,28 @@ class pqmodel {
         } catch (err) {
           console.error(err);
         }
-      }, 10);
+      }, 5);
     }
     
+  }
+
+  initTrigger () {
+    this.orm.tableTrigger.addTable(this.tableName, this.__trigger__);
+    let triggers = [
+      'BeforeUpdate', 'BeforeInsert', 'BeforeDelete',
+      'Insert', 'Update', 'Delete'
+    ];
+
+    triggers.forEach(t => {
+      let fname = `trigger${t}`;
+      if (this[fname] && typeof this[fname] === 'function') {
+        this.__trigger__[ t[0].toLowerCase() + t.substring(1) ] = this[fname];
+      }
+    });
+  }
+
+  initModel (m) {
+    return new m(this.orm);
   }
 
   /**
@@ -119,10 +146,9 @@ class pqmodel {
    * 路径可以不传，此时如果name没有查询到，会返回null。
    * 在能够找到更好方式之前，暂时使用global.__psqlorm_relate__来记录进而避免循环关联。
    */
-
   relate (name = '') {
 
-    let n = this.relateName || this.tableName;
+    let n = this.relateName || this.constructor.name || this.tableName;
 
     if (!global.__psqlorm_relate__[n]) {
       global.__psqlorm_relate__[n] = this;
@@ -138,7 +164,12 @@ class pqmodel {
   }
 
   model (schema = null) {
-    return this.orm.model(this.tableName, schema);
+    let m = this.orm.model(this.tableName, schema);
+    m.__auto_id__ = this.autoId;
+    m.__id_len__ = this.idLen;
+    m.__id_pre__ = this.idPre;
+    m.__primary_key__ = this.primaryKey;
+    return m;
   }
 
   /**
@@ -147,58 +178,48 @@ class pqmodel {
    * @param {array} args 
    */
   where (cond, args = []) {
-    let m = this.orm.model(this.tableName);
-    m.__auto_id__ = this.autoId;
-    m.__primary_key__ = this.primaryKey;
+    let m = this.model();
     return m.where(cond, args);
   }
 
   schema (name) {
-    let m = this.orm.model(this.tableName, name);
-    m.__auto_id__ = this.autoId;
-    m.__primary_key__ = this.primaryKey;
-    return m;
+    return this.model(name);
   }
 
-  async join (m, on, join_type = 'INNER', options = {}) {
-    
+  bind (db) {
+    let m = this.model();
+    return m.bind(db);
+  }
+
+  trigger () {
+    let m = this.model();
+    return m.trigger();
+  }
+
+  returning (r) {
+    let m = this.model();
+    return m.returning(r);
+  }
+
+  join (m, on, join_type = 'INNER') {
     let tname;
 
     if (typeof m === 'string') {
       tname = m;
     } else {
       tname = m.tableName;
-      if (options.relateAlias) {
-        tname += ` as ${options.relateAlias}`;
-      }
     }
-    
-    let tj = this.orm.model(this.tableName, options.schema || null);
 
-    options.alias && (tj = tj.alias(options.alias));
-
-    tj = await tj.join(tname, on, join_type)
-                    .where(options.where || {})
-                    .limit(
-                      options.pagesize !== undefined ? options.pagesize : this.pagesize, 
-                      options.offset || 0
-                    );
-
-    options.order && (tj = tj.order(options.order));
-
-    let r = await tj.select(options.field || this.selectField);
-
-    return r.rows;
+    return this.orm.model(this.tableName).join(tname, on, join_type);
   }
 
   /**
-   * @param m {object|string} - 通过this.relate获取的模型实例或直接指定表名的字符串。
-   * @param on {string} - join条件。
-   * @param options {stirng} - 默认为{}，选项，支持where、schema、pagesize、offset、order。
+   * @param m {object|string} - 通过this.relate获取的模型实例或直接指定表名的字符串
+   * @param on {string} - join条件
    *
    * */
-  innerJoin (m, on, options = {}) {
-    return this.join(m, on, 'INNER', options);
+  innerJoin (m, on) {
+    return this.join(m, on, 'INNER');
   }
 
   /**
@@ -206,28 +227,19 @@ class pqmodel {
    *  - 通过this.relate获取的模型实例或直接指定表名的字符串
    * @param on {string} 
    *  - join条件
-   * @param options {stirng} 
-   *  - 默认为{}，选项，支持where、schema、pagesize、offset、order
-   *
    * */
-  leftJoin (m, on, options = {}) {
-    return this.join(m, on, 'LEFT', options);
+  leftJoin (m, on) {
+    return this.join(m, on, 'LEFT');
   }
 
   /**
-   * @param m {object|string} - 通过this.relate获取的模型实例或直接指定表名的字符串。
-   * @param on {string} - join条件。
-   * @param options {stirng} - 默认为{}，选项，支持where、schema、pagesize、offset、order。
+   * @param m {object|string} - 通过this.relate获取的模型实例或直接指定表名的字符串
+   * @param on {string} - join条件
    *
    * */
   rightJoin (m, on, options = {}) {
-    return this.join(m, on, 'RIGHT', options);
+    return this.join(m, on, 'RIGHT');
   }
-
-  /**
-   * 在动态支持schema的参数设计上，一旦参数超过3个则会把后面的参数以object的形式提供，减少参数传递复杂度。
-   * 否则最后一个参数是schema，默认是null。
-   */
 
   /**
    * 
@@ -239,23 +251,15 @@ class pqmodel {
    */
   async insert (data, options = {schema: null}) {
 
-    if (data[this.primaryKey] === undefined && this.autoId) {
-      data[this.primaryKey] = this.makeId();
-    }
-
     let h = this.model(options.schema);
+
+    if (data[this.primaryKey] === undefined && this.autoId) {
+      data[this.primaryKey] = this.makeId(this.idLen, this.idPre);
+      h.returning(this.primaryKey);
+    }
     
     options.returning && (h = h.returning(options.returning));
-
-    let r = await h.insert(data);
-
-    if (r.rowCount <= 0) {
-      return false;
-    }
-
-    if (options.returning) return r.rows[0];
-
-    return data[this.primaryKey];
+    return await h.insert(data);
   }
 
   /**
@@ -273,29 +277,23 @@ class pqmodel {
     
     let idlist = [];
 
+    let h = this.model(options.schema);
+
     if (this.autoId) {
+      h.returning(this.primaryKey);
+
       for (let i=0; i < data.length; i++) {
         if (data[i][this.primaryKey] === undefined) {
-          data[i].id = this.makeId();
+          data[i][this.primaryKey] = this.makeId(this.idLen, this.idPre);
         }
+
         idlist.push(data[i].id);
       }
     }
-    
-    let h = this.model(options.schema);
-    
+  
     options.returning && (h = h.returning(options.returning));
 
-    let r = await h.insertAll(data);
-
-    if (r.rowCount <= 0) {
-      return false;
-    } else if (!this.autoId) {
-      if (options.returning) return r.rows;
-      return r.rowCount;
-    }
-
-    return idlist;
+    return await h.insertAll(data);
   }
 
   /**
@@ -308,15 +306,10 @@ class pqmodel {
    * @returns Promise
    */
   async update (cond, data, options={schema: null}) {
-
     let h = this.model(options.schema);
     options.returning && (h = h.returning(options.returning));
 
-    let r = await h.where(cond).update(data);
-
-    if (options.returning) return r.rows;
-
-    return r.rowCount;
+    return await h.where(cond).update(data);
   }
 
   /**
@@ -329,8 +322,7 @@ class pqmodel {
    *  - order {string} 排序方式。
    * @returns object
    */
-  async list (cond, args = {schema: null}) {
-
+  async select (cond, args = {schema: null}) {
     let t = this.model(args.schema).where(cond);
 
     let offset = args.offset || 0;
@@ -345,10 +337,7 @@ class pqmodel {
       t = t.order(args.order);
     }
     
-    let r = await t.select(args.field || this.selectField);
-
-    return r.rows;
-
+    return await t.select(args.field || this.selectField);
   }
 
   /**
@@ -362,13 +351,7 @@ class pqmodel {
   async get (cond = {}, options = {field: null, schema: null}) {
     let r = await this.model(options.schema)
                       .where(cond)
-                      .select(options.field || this.selectField);
-
-    if (r.rowCount <= 0) {
-      return null;
-    }
-
-    return r.rows[0];
+                      .get(options.field || this.selectField);
   }
 
   /**
@@ -383,11 +366,7 @@ class pqmodel {
     let h = this.model(options.schema);
     options.returning && (h = h.returning(options.returning));
 
-    let r = await h.where(cond).delete();
-    
-    if (options.returning) return r.rows;
-
-    return r.rowCount;
+    return await h.where(cond).delete();
   }
 
   /**
@@ -398,8 +377,7 @@ class pqmodel {
    * @returns Promise
    */
   async count (cond = {}, options = {schema: null}) {
-    let total = await this.model(options.schema).where(cond).count();
-    return total;
+    return this.model(options.schema).where(cond).count();
   }
 
   _fmtNum (m, options) {
@@ -434,10 +412,8 @@ class pqmodel {
     return m;
   }
 
-  _no_fields_error = new Error('!!必须指定fileds。');
-
   throwNoFieldsError (options) {
-    if (!options.field) throw this._no_fields_error;
+    if (!options.field) throw new Error('!!必须指定fileds。');
     if (this.table.column[options.field] === undefined)
       throw new Error(`！！没有column：${options.field}.`);
   }
@@ -538,12 +514,6 @@ class pqmodel {
     return {ok: true};
   }
 
-  /*
-   * 数据的导入导出操作。
-   * 对于导出操作来说，需要先计算总数，如果数量太大则不能进行一次性导出，需要分块。
-   * 对于导入来说，要检查数据是否已经变化，如果字段已经变化，则根据变化情况，进行调整。
-   *
-   * */
   /**
    * 
    * @param options {object} 
@@ -599,7 +569,7 @@ class pqmodel {
       let schema = options.schema || null;
 
       while (true) {
-        ret = await self.list(cond, {
+        ret = await self.select(cond, {
           offset,
           pagesize,
           field: fields,
@@ -649,7 +619,7 @@ class pqmodel {
    *  - data {array} 导入的数据。
    *  - mode {string} 导入模式，默认为'strict'，支持'loose'模式。
    *  - update {string} 更新方式，默认为'delete-insert'，支持 delete-insert|update|none。
-   *  - schmea {string} 导入数据库的schema。
+   *  - schema {string} 导入数据库的schema。
    * @returns Promise
    */
   async dataIn (options = {}) {
@@ -661,7 +631,7 @@ class pqmodel {
     if (options.mode === undefined) options.mode = 'strict';
 
     //delete-insert update none
-    if (options.update === undefined) options.update = 'delete-insert';
+    if (options.update === undefined) options.update = 'update';
 
     let uid = this.primaryKey;
 
@@ -704,8 +674,7 @@ class pqmodel {
       };
 
     let ret = await this.transaction(async (db, ret) => {
-        if (createList.length > 0)
-          await db.insertAll(createList);
+        if (createList.length > 0) await db.insertAll(createList);
 
         let cond = {};
 
@@ -720,6 +689,7 @@ class pqmodel {
               //先检测是否存在然后确定是更新还是创建
             case 'update':
             case 'none':
+            default:
               cond[uid] = idlist;
               let chklist = await db.where(cond).select(uid);
               let r;
@@ -727,7 +697,7 @@ class pqmodel {
               let realUpdate = [];
               let idmap = {};
 
-              chklist.rowCount > 0 && chklist.rows.forEach(a => {
+              chklist.length > 0 && chklist.forEach(a => {
                 idmap[ a[uid] ] = a;
               });
 
@@ -761,22 +731,15 @@ class pqmodel {
    *  - field string类型，返回的列，默认和参数gby一致。
    *  - order string类型，排序方式。
    *  - where 条件，使用object类型，参考where接口。
-   * 
    */
   async group (gby, options = {}) {
-
-    let t = this.model(options.schema || null).where(options.where || {})
-                              .group(gby);
+    let t = this.model(options.schema || null)
+                .where(options.where || {})
+                .group(gby);
 
     if (options.order) t = t.order(options.order);
 
-    let r = await t.select(options.field || gby);
-    
-    if (r.rowCount > 0) {
-      return r.rows;
-    }
-
-    return [];
+    return await t.select(options.field || gby);
   }
 
   /**
@@ -1510,4 +1473,4 @@ class pqmodel {
 
 }
 
-module.exports = pqmodel;
+module.exports = PostgreModel;

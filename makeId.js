@@ -2,25 +2,20 @@
 
 const randstring = require('./randstring.js');
 
-/* function nrand (f, t) {
-  let discount = t - f;
-  return parseInt((Math.random() * discount) + f);
-} */
-
-makeId () {
-    
+function makeId (idLen = 12, idPre = '') {
+  
   let tmstr = Math.random().toString(16).substring(2);
 
-  if (tmstr.length < this.idLen) {
-    tmstr = `${tmstr}${randstring(this.idLen - tmstr.length)}`;
+  if (tmstr.length < idLen) {
+    tmstr = `${tmstr}${randstring(idLen - tmstr.length)}`;
   }
 
-  if (tmstr.length > this.idLen) {
-    tmstr = tmstr.substring(tmstr.length - this.idLen);
+  if (tmstr.length > idLen) {
+    tmstr = tmstr.substring(tmstr.length - idLen);
   }
 
-  if (this.idPre) {
-    return `${this.idPre}${tmstr}`;
+  if (idPre) {
+    return `${idPre}${tmstr}`;
   }
 
   return tmstr;

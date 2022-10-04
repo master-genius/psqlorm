@@ -8,8 +8,19 @@ Node.js环境有一个使用非常广泛的PostgreSQL数据库扩展：pg。pg�
 
 **从5.0版本开始，它会自动安装pg扩展，之前的版本是为了简单化，没有在package.json中加入依赖声明，所以4.x版本需要自己安装pg。5.0做了很多优化调整，pqmodel中join以及transaction的参数和功能都进行了调整和升级。基本的model使用没有变化。**
 
-**7.x版本进行了整体的更新，并且是不兼容更新。接口和选项属性更加规范和一致。功能也更全面和稳定。从此版本开始支持指定外键和自动同步外键、数据的导出备份和导入接口、事务操作接口的升级等。**
+> 7.x版本进行了整体的更新，并且是不兼容更新。接口和选项属性更加规范和一致。功能也更全面和稳定。从此版本开始支持指定外键和自动同步外键、数据的导出备份和导入接口、事务操作接口的升级等。
 
+**8.x版本在7.2.x版本基础上，进行了更全面的更新，注意这些更新是有些不兼容的，但是数据表结构自动同步是兼容更新。不兼容的更新主要是去掉了fdelete、finsert、fupdate接口，并且内部运行结构进行了升级。**
+
+**8.x更新的主要目的是让模型的操作接口更加一致，并且在事务处理时更加方便。**
+
+操作数据库的模型有两个：
+
+- 基础的Model，灵活易用，其内部就是利用pg的连接实例去生成并执行SQL。
+
+- PostgreModel 此模型类实现了数据表的自动同步以及更强的功能，其内部会利用Model执行SQL。
+
+因此，这种层层包装就要考虑到接口的一致性，接口尽可能一致就能增加易用性和可维护性，同时提高开发效率。
 
 ## 安装
 
@@ -103,6 +114,12 @@ let pqorm = initORM(dbconfig)
 
 以上工作，通过initORM直接完成。
 
+pqorm实例提供的接口：
+
+- model(tablename, schema = null) 返回Model实例去执行SQL。
+
+- transaction(callback, schema) 事务执行，其内部是调用了Model实例的transaction。
+
 
 ## 复杂查询
 
@@ -119,6 +136,7 @@ let pqorm = initORM(dbconfig);
     }
   };
 
+  //pqorm.model返回的就是Model实例。
   let result = await pqorm.model('user')
     .where(cond)
     .where('level > ? AND point > ?', [2,100])
@@ -132,21 +150,25 @@ let pqorm = initORM(dbconfig);
 
 ## 返回值
 
-对于 insert、insertAll、update、delete操作，其返回值就是pg扩展的返回值，通常要使用rowCount属性来确定所影响的行数，使用rows来获取查询结果。具体可以参考pg扩展的文档
+根据具体操作返回不同的值：
 
-<a href="https://node-postgres.com/" target=_blank>pg doc</a>
+- insert 返回插入数据的数量或根据returning设置返回一个对象。
 
-如果你不想再去查看文档，这里给出最简单直接的示例：
+- insertAll 返回插入数据的数量或根据returning设置返回对象数组。
+
+- update 返回更新数据的数量或根据returning设置返回对象数组。
+
+- delete 返回删除数据的数量或根据returning设置返回对象数组。
+
+- get 返回查询的数据对象或null。
+
+- select 返回查询的对象数组，没有找到返回空数组。
+
 
 ``` JavaScript
 
 async function getUserById (id) {
-  let r = await pqorm.model('user').where('id=?', [id]).select()
-  //返回的数据结果数为0,这里使用<=来作为没有查询到。
-  if (r.rowCount <= 0) {
-    return null
-  }
-  return r.rows[0]
+  return await pqorm.model('user').where('id=?', [id]).select()
 }
 
 /**
@@ -154,11 +176,11 @@ async function getUserById (id) {
   @param {object} data
 */
 async function updateUserInfo (id, data) {
-  let r = await pqorm.model('user').where({id : id}).update(data)
-  if (r.rowCount <= 0) {
-    return false
-  }
-  return true
+  let count = await pqorm.model('user').where({id : id}).update(data)
+
+  if (count > 0) return true
+
+  return false
 }
 
 ```
@@ -205,9 +227,11 @@ let pqorm = initORM(dbconfig);
 ;(async () => {
 
   //更新
-  await pqorm.model('users').where('user_id = ?', ['123']).update({
-      username : 'qaz'
-  });
+  await pqorm.model('users')
+             .where('user_id = ?', ['123'])
+             .update({
+                username : 'qaz'
+             });
 
   //删除
   await pqorm.model('users').where({user_id : '234'}).delete();
@@ -228,10 +252,11 @@ let pqorm = initORM(dbconfig);
 
 ;(async () => {
 
-  //更新
+  //returning可以多次调用。
   await pqorm.model('users')
         .where('user_id = ?', ['123'])
-        .returning('id,username,role')
+        .returning('id')
+        .returning(['username', 'role'])
         .update({
           username : 'qaz'
         });
@@ -344,7 +369,8 @@ let pqorm = initORM(dbconfig);
     role : 'test',
   }
 
-  let ulist = await pqorm.model('users as u')
+  let ulist = await pqorm.model('users')
+                        .alias('u')
                         .leftJoin('user_data as ud', 'u.id = ud.user_id')
                         .where(cond)
                         .select('u.id,username,u.detail,ud.page')
@@ -418,32 +444,29 @@ let pqorm = initORM(dbconfig);
 
 ;(async () => {
 
-  let r = await pqorm.transaction(async (db) => {
+  let r = await pqorm.transaction(async (db, handle) => {
     //一定要使用db，否则就不是原子操作。
-    //即使没有执行SQL的错误，但是某一过程的逻辑出错可以利用返回值表示执行失败
+    //即使没有执行SQL的错误，但是某一过程的逻辑出错可以利用handle取消事务。
     //设计方案是返回值是一个对象，其中failed字段如果为true则表示执行失败，可以设置errmsg描述错误信息。
     //或者，如果返回false，则也认为是执行失败了。
-    let ret = {
-      ok: true,
-      errmsg : ''
-    };
 
-    let a = await db.model('user').where('user_id = ?', [user_id]).select();
-    if (a.rowCount <= 0) {
-      ret.ok = false;
-      ret.errmsg = '没有此用户';
-      return ret;
+    let a = await db.table('user').where('user_id = ?', [user_id]).select();
+    
+    if (a.length === 0) {
+      handle.throwFailed('执行失败')
     }
 
     //result将会保存返回的数据，最终要在外层的transaction函数返回值里通过result属性拿到数据。
     ret.result = a;
-
-    return ret;
   });
 
-  //返回值r是一个对象，三个属性ok、result、errmsg
+  if (r.ok) {
+    console.log(r.result);
+  } else {
+    console.error(r.message);
+  }
 
-});
+})();
 
 
 ```
@@ -452,7 +475,7 @@ let pqorm = initORM(dbconfig);
 
 transaction不会抛出异常，相反，它会捕获异常然后设定相关数据并返回。
 
-返回值是一个对象，三个属性ok、result、errmsg :
+返回值是一个对象，三个属性ok、result、message :
 
 ``` JavaScript
 {
@@ -467,13 +490,31 @@ transaction不会抛出异常，相反，它会捕获异常然后设定相关数
     ok : true,
 
     //errmsg是执行sql失败后抛出错误的信息描述。
-    errmsg : ''
+    message : ''
 }
 ```
 
-----
+## trigger
 
-以下是更高一层ORM实现，但是对Postgres的类型支持有限，仅支持常用的类型：
+Model支持trigger和triggerCommit函数用于开启触发器，触发器支持insert、update、delete操作。这需要你提前编写trigger函数进行相关的处理，为了方便开发，直接在PostgreModel中编写trigger开头的函数即可。
+
+```javascript
+
+let pqorm = initORM(dbconfig);
+
+//执行后，trigger表示开启触发器，此时会触发insert事件。
+pqorm.model('users').reutrning('id').trigger().insert(data);
+
+```
+
+具体的要参考PostgreModel。
+
+**注意：触发器是异步操作。**
+
+
+## PostgreModel
+
+PostgreModel更高一层ORM实现，但是对Postgres的类型支持有限，仅支持常用的类型：
 
 > 数字（int、bigint、smallint、numeric）、字符串（text、char、varchar）、bytea、时间戳、jsonb。
 
@@ -497,9 +538,9 @@ transaction不会抛出异常，相反，它会捕获异常然后设定相关数
 | update (cond, data, options={schema: null}) |  | 更新 |
 | delete (cond, options={schema: null}) |  | 删除 |
 | transaction (callback, schema = null) |  | 事务，和model有所区别，是对model层transaction的封装。callback接受第一个参数是db，第二个参数是一个object，用于设置事务执行状态和设定返回的数据。 |
-| innerJoin(m, on, options = {}) | m可以是字符串表示表名也可以是另一个模型实例 | options支持where、schema、pagesize(相当于limit) 、offset、selectField、order属性。|
-| leftJoin(m, on, options = {}) | on是join条件 | options参考innerJoin。 |
-| rightJoin(m, on, options = {}) | schema可以设置数据库schema | options参考innerJoin。 |
+| innerJoin(m, on) | m可以是字符串表示表名也可以是另一个模型实例 | |
+| leftJoin(m, on) | on是join条件 |  |
+| rightJoin(m, on) | schema可以设置数据库schema |  |
 | makeId () |  | 生成唯一ID。 |
 | list (cond, args, schema = null) | args是object，支持属性：pagesize，order，offset，selectField。皆有默认值 | 查询列表，默认使用this.selectField作为选取的列，可以使用属性selectField指定。 |
 | count (cond, options={schema: null}) |  | 统计 |
@@ -528,7 +569,7 @@ transaction不会抛出异常，相反，它会捕获异常然后设定相关数
                     .returning('id,name,sex,subject')
                     .insert({
                       id: db.university.makeId(),
-                      name: '王金刚',
+                      name: '王大力',
                       sex: 1,
                       year: 2023
                     })
@@ -643,9 +684,9 @@ this.table = {
 
 'use strict';
 
-const pqmodel = require('psqlorm').Model;
+const PostgreModel = require('psqlorm').Model;
 
-class data_great extends pqmodel {
+class dataTest extends PostgreModel {
 
   constructor(pqorm) {
     
@@ -663,7 +704,7 @@ class data_great extends pqmodel {
 
     //需要替换成数据表真正的名称
 
-    this.tableName = 'data_great';
+    this.tableName = 'data_test';
 
     this.table = {
       column : {
@@ -700,21 +741,20 @@ class data_great extends pqmodel {
 
   }
 
+  //insert触发器。注意：触发器是异步操作。
+  triggerInsert(tg) {
+    console.log(tg);
+  }
+
+  //调用此函数，创建数据，会自动执行triggerInsert。
+  async create (data) {
+    return this.returning(['id', 'data_id']).trigger().insert(data);
+  }
+
 }
 
-module.exports = data_great;
+module.exports = dataTest;
 
 ```
 
-仅仅是以上一个文件，就可以使用get、select、delete、insert、insertAll等接口。
-
-### finsert fupdate fdelete接口
-
-**这几个接口和insert、update、delete接口参数一致。** 主要区别在于：
-
-- 调用f开头的函数会在更改数据库之前检测如果存在beforeInsert、beforeUpdate、beforeDelete接口，则会执行，执行时会使用await操作。如果返回值为false则会退出，返回值为false。
-
-- 调用f开头的函数，在数据更改后，会检测是否存在afterInsert、afterUpdate、afterDelete函数，如果存在则会执行，并且不再使用await操作，这afterXXX的函数可以异步执行。
-
-- beforeXXX、afterXXX的函数接受参数和对应的finsert、fupdate、fdelete一致。
-
+仅仅是以上一个文件，可以使用get、select、delete、insert、insertAll等接口。

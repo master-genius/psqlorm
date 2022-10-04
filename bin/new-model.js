@@ -8,7 +8,7 @@ function makeModel (name) {
 
 let mstr = `'use strict'
 
-const pqmodel = require('psqlorm').Model
+const PostgreModel = require('psqlorm').Model
 
 /**
  * @typedef {object} column
@@ -72,7 +72,7 @@ let _table = {
   ]
 }
 
-class ${name} extends pqmodel {
+class ${name} extends PostgreModel {
 
   constructor (pqorm) {
     //必须存在并且写在最前面。
@@ -96,6 +96,29 @@ class ${name} extends pqmodel {
     this.table = _table
 
   }
+
+  //示例：定义update、delete、insert的触发器。
+  /*
+  triggerInsert (tg) {
+    console.log(tg);
+  }
+
+  triggerDelete (tg) {
+    console.log(tg);
+  }
+
+  triggerUpdate (tg) {
+    console.log(tg);
+  }
+  */
+
+  //执行触发器需要显示调用trigger或在事务中调用triggerCommit。
+  //当调用create函数创建数据，会自动触发insert事件，此时会执行triggerInsert函数。
+  /*
+  async create (data) {
+    return this.returning(['id', 'name']).trigger().insert(data);
+  }
+  */
 
 }
 
