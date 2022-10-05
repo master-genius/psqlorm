@@ -51,7 +51,6 @@ const pgdb = new pg.Pool({
 //pqorm.db 就可以访问pgdb。
 const pqorm = new psqlorm(pgdb);
 
-
 ;(async () => {
     pqorm.model('user')
         .where({
@@ -80,9 +79,7 @@ const pqorm = new psqlorm(pgdb);
  * }
  */
 function initpgorm (dbconfig) {
-
   let pdb = new pg.Pool(dbconfig)
-
   return new psqlorm(pdb)
 }
 
@@ -248,6 +245,7 @@ model层面提供了returning接口设置要返回的列。
 
 ``` JavaScript
 
+let {initORM} = require('psqlorm');
 let pqorm = initORM(dbconfig);
 
 ;(async () => {
@@ -432,7 +430,6 @@ let pqorm = initORM(dbconfig);
 });
 
 ```
-
 
 ## 事务
 
