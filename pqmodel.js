@@ -259,7 +259,7 @@ class PostgreModel {
     }
     
     options.returning && (h = h.returning(options.returning));
-    return await h.insert(data);
+    return h.insert(data);
   }
 
   /**
@@ -293,7 +293,7 @@ class PostgreModel {
   
     options.returning && (h = h.returning(options.returning));
 
-    return await h.insertAll(data);
+    return h.insertAll(data);
   }
 
   /**
@@ -309,7 +309,7 @@ class PostgreModel {
     let h = this.model(options.schema);
     options.returning && (h = h.returning(options.returning));
 
-    return await h.where(cond).update(data);
+    return h.where(cond).update(data);
   }
 
   /**
@@ -337,7 +337,7 @@ class PostgreModel {
       t = t.order(args.order);
     }
     
-    return await t.select(args.field || this.selectField);
+    return t.select(args.field || this.selectField);
   }
 
   /**
@@ -349,9 +349,9 @@ class PostgreModel {
    * @returns object
    */
   async get (cond = {}, options = {field: null, schema: null}) {
-    let r = await this.model(options.schema)
-                      .where(cond)
-                      .get(options.field || this.selectField);
+    return this.model(options.schema)
+               .where(cond)
+               .get(options.field || this.selectField);
   }
 
   /**
@@ -366,7 +366,7 @@ class PostgreModel {
     let h = this.model(options.schema);
     options.returning && (h = h.returning(options.returning));
 
-    return await h.where(cond).delete();
+    return h.where(cond).delete();
   }
 
   /**
