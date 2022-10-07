@@ -93,6 +93,7 @@ class PostgreModel {
 
     this.makeId = makeId;
 
+    
     if (!global.__psqlorm_relate__) global.__psqlorm_relate__ = {};
 
     process.nextTick(async () => {
@@ -107,24 +108,14 @@ class PostgreModel {
 
   async __init__ () {
     this.relate();
-    this.initTrigger();
-
-    if (this.init && typeof this.init === 'function') {
-      setTimeout(async () => {
-        try {
-          await this.init();
-        } catch (err) {
-          console.error(err);
-        }
-      }, 5);
-    }
-    
+    if (!this.orm.tableTrigger.hasTable(this.tableName))
+      this.initTrigger();
   }
 
   initTrigger () {
     this.orm.tableTrigger.addTable(this.tableName, this.__trigger__);
     let triggers = [
-      'BeforeUpdate', 'BeforeInsert', 'BeforeDelete',
+      //'BeforeUpdate', 'BeforeInsert', 'BeforeDelete',
       'Insert', 'Update', 'Delete'
     ];
 
@@ -134,10 +125,6 @@ class PostgreModel {
         this.__trigger__[ t[0].toLowerCase() + t.substring(1) ] = this[fname];
       }
     });
-  }
-
-  initModel (m) {
-    return new m(this.orm);
   }
 
   /**
@@ -178,27 +165,31 @@ class PostgreModel {
    * @param {array} args 
    */
   where (cond, args = []) {
-    let m = this.model();
-    return m.where(cond, args);
+    return this.model().where(cond, args);
   }
 
   schema (name) {
     return this.model(name);
   }
 
-  bind (db) {
-    let m = this.model();
-    return m.bind(db);
+  connect () {
+    return this.model().connect();
   }
 
-  trigger () {
-    let m = this.model();
-    return m.trigger();
+  bind (db) {
+    return this.model().bind(db);
+  }
+
+  trigger (on = true) {
+    return this.model().trigger(on);
+  }
+
+  triggerCommit(on = true) {
+    return this.model().triggerCommit(on);
   }
 
   returning (r) {
-    let m = this.model();
-    return m.returning(r);
+    return this.model().returning(r);
   }
 
   join (m, on, join_type = 'INNER') {

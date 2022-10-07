@@ -18,18 +18,23 @@ let commandTable = {
   UPDATE: '5',
   DELETE: '6'
 }
-
+/* 
 let beforeEventName = {};
-let eventName = {};
-
 beforeEventName[ commandTable.INSERT ] = 'beforeInsert';
 beforeEventName[ commandTable.INSERTS ] = 'beforeInsert';
 beforeEventName[ commandTable.UPDATE ] = 'beforeUpdate';
 beforeEventName[ commandTable.DELETE ] = 'beforeDelete';
+ */
+let eventName = {};
 eventName[ commandTable.INSERT ] = 'insert';
 eventName[ commandTable.INSERTS ] = 'insert';
 eventName[ commandTable.UPDATE ] = 'update';
 eventName[ commandTable.DELETE ] = 'delete';
+
+let state = {
+  USING: 1,
+  FREE: 0
+};
 
 class Model {
 
@@ -60,9 +65,13 @@ class Model {
     this.tableTrigger = trigger;
 
     //用于事务处理时的锁定。
-    this._freeLock = false;
+    this.__free_lock__ = false;
 
-    this.fetchSql = false;
+    this.state = state;
+
+    this.__state__ = this.state.USING;
+
+    this.__fetch_sql__ = false;
 
     this.stag = this.makeQuoteTag(6 + parseInt(Math.random() * 3));
 
@@ -83,16 +92,14 @@ class Model {
       alias: ''
     };
     
-    this.last = null;
-
-    this.table = this.model;
     this.__id_len__ = 12;
     this.__id_pre__ = '';
     this.__auto_id__ = false;
     this.__primary_key__ = 'id';
-    this.__trigger_before__ = false;
+    //this.__trigger_before__ = false;
     this.__trigger_after__ = false;
     this.__trigger_commit__ = false;
+    this.__transaction__ = false;
     this.commitTriggers = [];
   }
 
@@ -109,8 +116,7 @@ class Model {
     this.sqlUnit.order = '';
     this.sqlUnit.group = '';
     this.sqlUnit.returning = '';
-    this.last = null;
-    this.__trigger_before__ = false;
+    //this.__trigger_before__ = false;
     this.__trigger_after__ = false;
     this.__trigger_commit__ = false;
   }
@@ -126,13 +132,17 @@ class Model {
     return '$_' + randstring(len, saltArr) + '_$';
   }
 
-  triggerBefore (on = true) {
+  /* triggerBefore (on = true) {
     this.__trigger_before__ = on;
     return this;
-  }
+  } */
 
   trigger (on = true) {
-    this.__trigger_after__ = on;
+    if (this.__transaction__) {
+      this.__trigger_commit__ = on;
+    } else {
+      this.__trigger_after__ = on;
+    }
     return this;
   }
 
@@ -175,7 +185,7 @@ class Model {
     return this;
   }
 
-  model (tableName = '', schema = null) {
+  table (tableName = '', schema = null) {
     if (typeof tableName === 'string' && tableName.length > 0) {
       this.tableName = tableName;
     }
@@ -198,12 +208,12 @@ class Model {
   }
 
   fetch() {
-    this.fetchSql = true;
+    this.__fetch_sql__ = true;
     return this;
   }
 
   run() {
-    this.fetchSql = false;
+    this.__fetch_sql__ = false;
     return this;
   }
 
@@ -218,16 +228,6 @@ class Model {
 
     return this.stag + a + this.stag;
   }
-
-  //在使用replace时，$被认为是格式化字符串标识。
-  /*
-  qoute2 (a) {
-    if (typeof a !== 'string') {
-      return a;
-    }
-    return `$$$$${a}$$$$`;
-  }
-  */
 
   /**
    * 
@@ -387,24 +387,27 @@ class Model {
   }
 
   async exec () {
+    if (this.__state__ === this.state.FREE) {
+      console.error('\n\x1b[2;31;47msql执行后会自动释放模型，若需要重复使用，请调用connect()持有当前Model实例，并在执行完毕后调用free()释放。\n您可能是使用了中间变量保存模型实例并多次运行。Model.prototype.connect()可以让您持有此模型实例。Model.prototype.free()用于将模型实例释放到连接池。\x1b[0m\n');
+      throw new Error(`Model实例处于释放状态，重复使用可能会导致冲突。提示：connect()用于持有此模型实例，free()用于释放模型实例。\n`);
+    }
+
     let sql = this.psql();
     let comm = this.sqlUnit.command;
-    let is_trigger_b = this.__trigger_before__;
+    //let is_trigger_b = this.__trigger_before__;
     let is_trigger = this.__trigger_after__;
     let is_trigger_m = this.__trigger_commit__;
 
     this.init();
-    if (this.fetchSql) {
-      return sql;
-    }
+    if (this.__fetch_sql__) return sql;
 
     try {
       let ename;
 
-      if (is_trigger_b && this.tableTrigger) {
+      /* if (is_trigger_b && this.tableTrigger) {
         ename = beforeEventName[comm];
         ename && this.tableTrigger.emit(ename, this.__schema__, this.tableName, ename, sql, null);
-      }
+      } */
 
       let r = await this.db.query(sql);
 
@@ -448,8 +451,8 @@ class Model {
     } catch (err) {
       throw err;
     } finally {
-      if (!this._freeLock) {
-        this._freeLock = false;
+      if (!this.__free_lock__) {
+        this.__free_lock__ = false;
         this.parent.free(this);
       }
     }
@@ -596,6 +599,30 @@ class Model {
     return r.sum_value;
   }
 
+  free () {
+    this.parent.free(this);
+  }
+
+  /**
+   * 锁定模型，不释放。
+   * @returns {this}
+   */
+  connect () {
+    if (this.__state__ === this.state.FREE) {
+      let m = new this.constructor(this.odb,
+                              this.tableName,
+                              this.__schema__,
+                              this.parent,
+                              this.tableTrigger);
+      m.__free_lock__ = true;
+      return m;
+      //throw new Error(`无法连接模型实例，您可能进行了错误操作：先执行sql然后再次调用connect()`);
+    }
+
+    this.__free_lock__ = true;
+    return this;
+  }
+
   /**
    * 
    * @param {object} db 数据库连接的pg.Client客户端实例
@@ -604,6 +631,10 @@ class Model {
   bind (db) {
     if (db.constructor.name === 'Model' || db.db) {
       this.db = db.db;
+      this.commitTriggers = db.commitTriggers;
+      //this.__trigger_commit__ = db.__trigger_commit__;
+      this.__free_lock__ = true;
+      this.__transaction__ = db.__transaction__;
     } else {
       this.db = db;
     }
@@ -635,7 +666,8 @@ class Model {
     try {
       this.db = await this.odb.connect();
       //事务中，锁定释放。
-      this._freeLock = true;
+      this.__free_lock__ = true;
+      this.__transaction__ = true;
 
       await this.db.query('BEGIN');
       
@@ -666,7 +698,7 @@ class Model {
     } finally {
       this.db.release();
       this.db = this.odb;
-      this._freeLock = false;
+      this.__free_lock__ = false;
       this.parent.free(this);
     }
     

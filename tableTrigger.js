@@ -20,9 +20,12 @@ class TableTrigger extends EventEmitter {
     }
     
     this.events = [
-      'beforeUpdate', 'update',
-      'beforeInsert', 'insert',
-      'beforeDelete', 'delete'
+      //'beforeUpdate',
+      //'beforeInsert',
+      //'beforeDelete',
+      'insert',
+      'update',
+      'delete',
     ]
 
     this.events.forEach(e => {
@@ -32,6 +35,10 @@ class TableTrigger extends EventEmitter {
 
   addTable (t, val) {
     this.tables[t] = val
+  }
+
+  hasTable (name) {
+    return this.tables[name] ? true : false
   }
 
   async handleEvent (schema, table, evtname, sql, data) {

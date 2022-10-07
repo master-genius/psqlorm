@@ -19,17 +19,36 @@ let pqorm = function (db) {
     this.db = db;
   };
 
-  this.max = 4096;
+  Object.defineProperty(this, '__max__', {
+    configurable: false,
+    enumerable: false,
+    writable: true,
+    value: 2560
+  });
+
+  Object.defineProperty(this, 'max', {
+    get: () => {
+      return this.__max__;
+    },
+
+    set: (v) => {
+      if (typeof v === 'number' && v > 0) {
+        this.__max__ = v;
+      }
+    }
+  });
 
   this.pool = [];
 
   let self = this;
 
   this.free = (mdb) => {
-    if (self.pool.length < self.max) {
+    if (self.pool.length < self.__max__) {
       mdb.init();
       mdb.resetIdInfo();
       mdb.commitTriggers = [];
+      mdb.__state__ = mdb.state.FREE;
+      mdb.__transaction__ = false;
       self.pool.push(mdb);
     }
   };
@@ -41,9 +60,10 @@ let pqorm = function (db) {
       t.odb = t.db = self.db;
       t.tableName = tablename;
       t.__schema__ = t._schema = schema;
-      t.fetchSql = false;
-      t._freeLock = false;
-
+      t.__fetch_sql__ = false;
+      t.__free_lock__ = false;
+      t.__state__ = t.state.USING;
+      t.__trigger_commit__ = false;
       return t;
     }
 
@@ -69,6 +89,10 @@ pqorm.prototype.model = function (tablename, schema = '') {
   return new mo(this.db, tablename, schema || this.schema, this, this.tableTrigger);
 };
 
+pqorm.prototype.connect = function (tablename, schema = '') {
+  return this.model(tablename, schema).connect();
+};
+
 pqorm.prototype.transaction = async function (callback, schema = '') {
 
   let m = this.getm('', schema || this.schema);
@@ -84,12 +108,6 @@ pqorm.prototype.transaction = async function (callback, schema = '') {
 
 pqorm.prototype.end = function () {
   this.db.end();
-};
-
-pqorm.prototype.maxPool = function (n = null) {
-  if (n === null || typeof n !== 'number') return this.max;
-
-  this.max = n;
 };
 
 pqorm.initORM = (config, schema = null) => {
