@@ -509,6 +509,36 @@ pqorm.model('users').reutrning('id').trigger().insert(data);
 **注意：触发器是异步操作。**
 
 
+## connect和锁定
+
+> 推荐通过pqorm.model()去自动执行，不要保存pqorm.model()的返回模型实例反复使用。
+
+通过pqorm.model()获取的模型实例是自动从连接池找到或创建的新的实例。一个实例执行一次sql以后会自动释放。若要使用中间变量保存返回的模型继续执行sql，则需要使用connect()方法锁定模型不被自动释放，运行结束后，使用free()方法释放。
+
+```javascript
+
+;(async () => {
+    //等效代码：let m = pqorm.connect('users')
+    let m = pqorm.model('users').connect()
+
+    let r = await m.where('id = ?', [123]).get()
+
+    console.log(r)
+
+    r = await m.where('role = ?', ['admin']).select()
+
+    console.log(r)
+
+    //释放，若不调用free()，则m不会被放回连接池。
+    //如果连接池为空，pqormmodel()会自动创建新的实例。
+    m.free()
+})();
+
+```
+
+**不调用Model.prototype.free()只是不会让模型实例放回连接池，函数运行结束，此实例就会被垃圾回收清理掉。并不会引发其他问题。**
+
+
 ## PostgreModel
 
 PostgreModel更高一层ORM实现，但是对Postgres的类型支持有限，仅支持常用的类型：
