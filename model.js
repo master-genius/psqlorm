@@ -89,7 +89,8 @@ class Model {
       join : '',
       group: '',
       returning: '',
-      alias: ''
+      alias: '',
+      for: ''
     };
     
     this.__id_len__ = 12;
@@ -116,6 +117,7 @@ class Model {
     this.sqlUnit.order = '';
     this.sqlUnit.group = '';
     this.sqlUnit.returning = '';
+    this.sqlUnit.for = '';
     //this.__trigger_before__ = false;
     this.__trigger_after__ = false;
     this.__trigger_commit__ = false;
@@ -298,6 +300,24 @@ class Model {
     return this;
   }
 
+  forUpdate (k = '') {
+    if (!k) {
+      this.sqlUnit.for = ' FOR UPDATE';
+    } else {
+      this.sqlUnit.for = ' FOR NO KEY UPDATE';
+    }
+    return this;
+  }
+
+  forShare (k = '') {
+    if (!k) {
+      this.sqlUnit.for = ' FOR SHARE';
+    } else {
+      this.sqlUnit.for = ' FOR KEY SHARE';
+    }
+    return this;
+  }
+
   join (table, on, join_type = 'INNER') {
     this.sqlUnit.join += `${join_type} JOIN ${this.__schema__}.${table} ON ${on} `;
     return this;
@@ -366,7 +386,7 @@ class Model {
       case commandTable.GET:
         sql = `SELECT ${this.sqlUnit.fields} FROM ${schemaTable} ${this.sqlUnit.join} `
             + `${this.sqlUnit.where.length > 0 ? 'WHERE ' : ''}${this.sqlUnit.where} `
-            + `${this.sqlUnit.group}${this.sqlUnit.order}${this.sqlUnit.limit};`;
+            + `${this.sqlUnit.group}${this.sqlUnit.order}${this.sqlUnit.limit}${this.sqlUnit.for};`;
         break;
 
       case commandTable.DELETE:
