@@ -2,6 +2,8 @@
 
 const makeId = require('./makeId.js');
 
+const randstring = require('./randstring.js');
+
 class PostgreModel {
 
   constructor (pqorm = null) {
@@ -367,8 +369,9 @@ class PostgreModel {
    *  - schema {string} 数据库schema。
    * @returns Promise
    */
-  async count (cond = {}, options = {schema: null}) {
-    return this.model(options.schema).where(cond).count();
+  async count (cond = {}, options = {column:'*', schema: null}) {
+    let col = options.column || '*';
+    return this.model(options.schema).where(cond).count(col);
   }
 
   _fmtNum (m, options) {
@@ -809,7 +812,7 @@ class PostgreModel {
    * @param force {boolean} 
    *   - 是否强制同步，默认为false，若为true则会强制把数据库改为和table结构一致。
    */
-  async sync (debug=false, force=false) {
+  async sync (debug=false, force=false, dropNotExistCol = false) {
 
     if (!this.table) {
       console.error('没有table对象');
@@ -874,6 +877,8 @@ class PostgreModel {
       database, this.orm.schema, this.tableName
     ]);
 
+    let qtag = randstring(12);
+
     //没有表，需要创建
     if (r.rowCount <= 0) {
 
@@ -900,7 +905,9 @@ class PostgreModel {
           //自动检测默认值
           pt = this._parseType(tmp.type);
           if (tmp.default === undefined) {
-            if (this.numerics.indexOf(pt) >= 0) {
+            if (this._isArray(tmp.type)) {
+              tmp.default = '{}';
+            } else if (this.numerics.indexOf(pt) >= 0) {
               tmp.default = 0;
             } else if (this.strings.indexOf(pt) >= 0) {
               tmp.default = '';
@@ -908,7 +915,11 @@ class PostgreModel {
           }
 
           if (tmp.default !== undefined) {
-            sql += `default $$${tmp.default}$$ `;
+            if (tmp.default === null) {
+              sql += 'default null ';
+            } else {
+              sql += `default $_${qtag}_$${tmp.default}$_${qtag}_$ `;
+            }
           }
           
           if (tmp.ref && tmp.references) {
@@ -934,7 +945,7 @@ class PostgreModel {
     }
 
     let fields = 'column_name,data_type,column_default,character_maximum_length,'
-                  +'numeric_precision,numeric_scale';
+                  +'numeric_precision,numeric_scale,is_nullable';
 
     r = await this.db.query(
       `select ${fields} from information_schema.columns where table_name=$1 AND table_schema=$2 AND table_catalog=$3`, 
@@ -951,7 +962,7 @@ class PostgreModel {
       this.table.removeIndex = this.table.dropIndex;
     }
 
-    await this._syncColumn(inf, curTableName, debug, force);
+    await this._syncColumn(inf, curTableName, debug, force, dropNotExistCol);
 
     await this._syncIndex(curTableName, debug);
 
@@ -998,8 +1009,9 @@ class PostgreModel {
      * 
      *    typeLock 为true表示不进行类型更新。
      */
-  async _syncColumn (inf, curTableName, debug = false, force = false) {
+  async _syncColumn (inf, curTableName, debug = false, force = false, dropNotExistCol = false) {
     
+    let qtag = randstring(12);
     let pt = '';
     let real_type = '';
     let col = null;
@@ -1044,7 +1056,9 @@ class PostgreModel {
         }
         
         if (col.default === undefined) {
-          if (this.numerics.indexOf(pt) >= 0) {
+          if (this._isArray(col.type)) {
+            col.default = '{}';
+          } else if (this.numerics.indexOf(pt) >= 0) {
             col.default = 0;
           } else if (this.strings.indexOf(pt) >= 0) {
             col.default = '';
@@ -1052,8 +1066,13 @@ class PostgreModel {
         }
 
         if (col.default !== undefined) {
-          sql += ` default $$${col.default}$$`;
+          if (col.default === null) {
+            sql += ' default null';
+          } else {
+            sql += ` default $_${qtag}_$${col.default}$_${qtag}_$`;
+          }
         }
+
         if (debug) {
           console.log(sql);
         }
@@ -1089,8 +1108,16 @@ class PostgreModel {
               await this.db.query(sql);
               
               sql = `alter table ${curTableName} add ${k} ${col.type}`;
-              if (col.default) {
-                sql += ` not null default $$${col.default}$$`;
+              if (col.notNull !== false) {
+                sql += ' not null';
+              }
+
+              if (col.default !== undefined) {
+                if (col.default === null) {
+                  sql += ' default null ';
+                } else {
+                  sql += ` default $_${qtag}_$${col.default}$_${qtag}_$`;
+                }
               }
 
               await this.db.query(sql);
@@ -1120,7 +1147,8 @@ class PostgreModel {
         let real_default = this._realDefault(k, col.default);
 
         if (real_default !== inf[k].column_default) {
-          sql = `alter table ${curTableName} alter column ${k} set default $$${col.default}$$`;
+          let default_value = col.default === null ? 'null' : `$_${qtag}_$${col.default}$_${qtag}_$`;
+          sql = `alter table ${curTableName} alter column ${k} set default ${default_value}`;
           await this.db.query(sql);
         }
       }
@@ -1129,11 +1157,15 @@ class PostgreModel {
         if (inf[k].is_nullable === 'YES') {
           await this.db.query(`alter table ${curTableName} alter column ${k} set not null`);
         }
+      } else {
+        if (inf[k].is_nullable === 'NO') {
+          //难以把列恢复为允许null，请自行修改或重新创建列。
+        }
       }
     }
 
     //force模式检测若有数据表字段，在程序中未定义，则直接删除。
-    if (force) {
+    if (dropNotExistCol) {
       for (let k in inf) {
         if (!this.table.column[k]) {
           await this.db.query(`alter table ${curTableName} drop column ${k}`);
@@ -1431,6 +1463,11 @@ class PostgreModel {
 
   _realType (t) {
     return this.dataTypeMap[t] || null;
+  }
+
+  _isArray (t) {
+    if (t.indexOf('[') > 0) return true;
+    return false;
   }
 
   _realDefault (t, val) {

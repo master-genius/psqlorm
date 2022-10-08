@@ -89,7 +89,7 @@ pqorm.prototype.model = function (tablename, schema = '') {
   return new mo(this.db, tablename, schema || this.schema, this, this.tableTrigger);
 };
 
-pqorm.prototype.connect = function (tablename, schema = '') {
+pqorm.prototype.connect = function (tablename = '', schema = '') {
   return this.model(tablename, schema).connect();
 };
 

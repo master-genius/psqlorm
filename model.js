@@ -392,6 +392,10 @@ class Model {
       throw new Error(`Model实例处于释放状态，重复使用可能会导致冲突。提示：connect()用于持有此模型实例，free()用于释放模型实例。\n`);
     }
 
+    if (!this.tableName) {
+      throw new Error('您运行的是初始状态的Model，未指定table，请通过方法table(name)设定table名称再次执行。');
+    }
+
     let sql = this.psql();
     let comm = this.sqlUnit.command;
     //let is_trigger_b = this.__trigger_before__;
@@ -552,8 +556,8 @@ class Model {
     return this.exec();
   }
 
-  async count () {
-    let r = await this.get('COUNT(*) as total');
+  async count (count_column = '*') {
+    let r = await this.get(`COUNT(${count_column}) as total`);
     return parseInt(r.total);
   }
 
