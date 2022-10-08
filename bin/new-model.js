@@ -112,14 +112,52 @@ class ${name} extends PostgreModel {
   }
   */
 
-  //执行触发器需要显示调用trigger或在事务中调用triggerCommit。
+  //执行触发器需要显式调用trigger或在事务中调用triggerCommit。
+  //只有调用trigger的sql执行才会执行触发器函数。
+  //在事务中，trigger()会根据状态标记自动识别是执行完sql出发还是事务提交以后再触发。。
+
   //当调用create函数创建数据，会自动触发insert事件，此时会执行triggerInsert函数。
-  /*
   async create (data) {
     return this.returning(['id', 'name']).trigger().insert(data);
   }
-  */
 
+  //事务处理示例函数。
+  async example_transaction (data) {
+    //只有使用参数传递的db执行sql才是事务操作。
+    /**
+     * @param {Model} db db是Model实例，可以调用Model上的方法。
+     * @param {Object} handle handle用于设置事务执行状态或返回数据。
+     */
+    let ret = await this.transaction(async (db, handle) => {
+
+        let r = await db.where('name = ?', ['']).select()
+        
+        if (r.length === 0) {
+          //事务执行失败，抛出错误。
+          handle.throwFailed('没有查询到name为空的数据。')
+        }
+        
+        /*
+        示例：获取users模型并绑定到db。如果不使用bind绑定，则执行不是事务操作。
+        在当前目录中存在一个users.js，定义class Users，relate('Users')函数用于获取一个模型实例。
+        */
+        /*
+        let users = this.relate('Users').bind(db)
+        await users.where({role: 'test'}).update(data)
+        */
+        
+        //示例代码仅作基本使用的参考...
+
+        //此返回值将作为事务的返回结果，其等效形式为：handle.result = 'ok'
+        return 'ok'
+    })
+
+    //如果执行成功，输出为：true ok
+    console.log(ret.ok, ret.result)
+
+    return ret
+  }
+  
 }
 
 module.exports = ${name}
@@ -128,7 +166,7 @@ module.exports = ${name}
 
 }
 
-let name_preg = /^[a-z_][a-z0-9_]{0,50}$/i
+let name_preg = /^[a-z][a-z0-9_]{1,60}$/i
 
 function checkName (name) {
   return name_preg.test(name)
@@ -165,7 +203,9 @@ let cpath
 for (let c of mlist) {
 
   if (!checkName(c)) {
-    console.error(`${c} 不符合命名要求。(the name is illegal.)`)
+    console.error(`${c} 不符合命名要求。(the name is illegal.)\n`
+      + `要求至少2个字符，最多60字符，字母开头，支持：字母 数字 和 _`)
+
     continue
   }
 
@@ -178,7 +218,7 @@ for (let c of mlist) {
   } catch (err) {}
 
   try {
-    fs.writeFileSync(cpath, makeModel(c), {encoding: 'utf8'})
+    fs.writeFileSync(cpath, makeModel(`${c[0].toUpperCase()}${c.substring(1)}`), {encoding: 'utf8'})
   } catch (err) {
     console.error(err)
   }
