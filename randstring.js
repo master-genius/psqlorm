@@ -15,7 +15,7 @@ module.exports = (length = 8, sarr = null) => {
 
   let arr = sarr || saltArr;
 
-  for(let i=0; i<length; i++) {
+  for(let i = 0; i < length; i++) {
     ind = parseInt( Math.random() * arr.length);
     saltstr += saltArr[ ind ];
   }
