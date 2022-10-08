@@ -367,11 +367,15 @@ let pqorm = initORM(dbconfig);
     role : 'test',
   }
 
+  let fields = [
+    'u.id', 'username', 'u.detail', 'ud.page'
+  ]
+
   let ulist = await pqorm.model('users')
-                        .alias('u')
-                        .leftJoin('user_data as ud', 'u.id = ud.user_id')
-                        .where(cond)
-                        .select('u.id,username,u.detail,ud.page')
+                      .alias('u')
+                      .leftJoin('user_data as ud', 'u.id = ud.user_id')
+                      .where(cond)
+                      .select(fields)
 
   console.log(ulist)
 
@@ -509,9 +513,9 @@ pqorm.model('users').reutrning('id').trigger().insert(data);
 **注意：触发器是异步操作。**
 
 
-## connect和锁定
+## connect和model锁定
 
-> 推荐通过pqorm.model()去自动执行，不要保存pqorm.model()的返回模型实例反复使用。
+> **推荐通过pqorm.model()去自动执行，不要保存pqorm.model()的返回模型实例反复使用。**
 
 通过pqorm.model()获取的模型实例是自动从连接池找到或创建的新的实例。一个实例执行一次sql以后会自动释放。若要使用中间变量保存返回的模型继续执行sql，则需要使用connect()方法锁定模型不被自动释放，运行结束后，使用free()方法释放。
 
@@ -537,6 +541,28 @@ pqorm.model('users').reutrning('id').trigger().insert(data);
 ```
 
 **不调用Model.prototype.free()只是不会让模型实例放回连接池，函数运行结束，此实例就会被垃圾回收清理掉。并不会引发其他问题。**
+
+## FOR UPDATE 和 FOR SHARE
+
+以下两种方法分别提供支持：
+
+- Model.prototype.forUpdate(k = '') 
+
+SELECT ... FOR UPDATE操作，查询的行锁定。具体参考Postgresql的文档。此操作主要用在事务处理中，锁定查询到的行，其他事务无法对锁定的行进行修改。
+
+如果传递参数true或'key'表示执行：
+
+SELECT ... FOR KEY UPDATE
+
+- Model.prototype.forShare(k = '')
+
+SELECT ... FOR SAHRE
+
+如果传递参数true或'no key'表示执行：
+
+SELECT ... FOR NO KEY SHARE
+
+> 数据库相关文档：<a target=_blank href="http://www.postgres.cn/docs/14/explicit-locking.html">显示锁定</a>
 
 
 ## PostgreModel
@@ -783,5 +809,3 @@ class dataTest extends PostgreModel {
 module.exports = dataTest;
 
 ```
-
-仅仅是以上一个文件，可以使用get、select、delete、insert、insertAll等接口。
