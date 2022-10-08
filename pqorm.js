@@ -44,12 +44,14 @@ let pqorm = function (db) {
 
   this.free = (mdb) => {
     if (self.pool.length < self.__max__) {
-      mdb.init();
-      mdb.resetIdInfo();
-      mdb.commitTriggers = [];
-      mdb.__state__ = mdb.state.FREE;
-      mdb.__transaction__ = false;
-      self.pool.push(mdb);
+      if (mdb.__state__ === mdb.state.USING) {
+        mdb.init();
+        mdb.resetIdInfo();
+        mdb.commitTriggers = [];
+        mdb.__state__ = mdb.state.FREE;
+        mdb.__transaction__ = false;
+        self.pool.push(mdb);
+      }
     }
   };
 
