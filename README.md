@@ -239,7 +239,9 @@ let pqorm = initORM(dbconfig);
 
 ## @ 标记
 
-value值在构造SQL语句时会自动进行引用处理，比如字符串aaa可能会变成\$\$aaa\$\$。如果不想进行自动的引用处理，则需要在key值前加上@标记。
+value值在构造SQL语句时会自动进行引用处理，比如字符串'a b c'可能会变成`$_123_$a b c$_123_$`
+
+如果不想进行自动的引用处理，则需要在key值前加上@标记。
 
 ```javascript
 // UPDATE users SET level=level+1 WHERE id=12
