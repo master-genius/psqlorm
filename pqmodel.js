@@ -491,6 +491,10 @@ class PostgreModel {
     return this._fmtNum(m, options);
   }
 
+  quote (a) {
+    return this.orm.model().quote(a);
+  }
+
   _checkFields (fields, options = {}) {
     if (!fields || !Array.isArray(fields)) return {ok: false, errcode: 'TYPE_WRONG'};
 
