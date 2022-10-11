@@ -237,6 +237,20 @@ let pqorm = initORM(dbconfig);
 
 ```
 
+## @ 标记
+
+value值在构造SQL语句时会自动进行引用处理，比如字符串aaa可能会变成\$_\$aaa\$_\$。如果不想进行自动的引用处理，则需要在key值前加上@标记。
+
+```javascript
+// UPDATE users SET level=level+1 WHERE id=12
+pqorm.model('users')
+    .where({id: 12})
+    .update({
+      '@level': 'level+1'
+    })
+
+```
+
 ## RETURNING 在更改数据后返回列
 
 这是一个数据库的功能，sql语句支持returning功能可以在更改后返回指定的列，不需要再做一次查询。
@@ -368,9 +382,10 @@ let pqorm = initORM(dbconfig);
   }
 
   let fields = [
-    'u.id', 'username', 'u.detail', 'ud.page'
+    'u.id', 'u.username', 'u.detail', 'ud.page'
   ]
 
+  //SELECT u.id, u.username, u.detail, ud.page FROM users AS u LEFT JOIN user_data AS ud ON u.id=ud.user_id WHERE role='test';
   let ulist = await pqorm.model('users')
                       .alias('u')
                       .leftJoin('user_data as ud', 'u.id = ud.user_id')
@@ -564,6 +579,57 @@ SELECT ... FOR NO KEY SHARE
 
 > 数据库相关文档：<a target=_blank href="http://www.postgres.cn/docs/14/explicit-locking.html">显示锁定</a>
 
+## where条件查询
+
+where()方法用于构建SQL的WHERE条件语句，where()最强大的地方在于支持传递字符串格式的条件和object格式，支持链式调用。并且可以融合原生SQL。where链式调用是AND连接，若要使用OR操作则需要传递字符串格式的条件，具体参考示例。
+
+
+**where(cond:string, args:Array)**
+字符串格式的条件，可以使用?表示参数的值，?个数必须要和args数组的长度一致。使用?作为占位符，使用args传递参数，会进行字符串的引用处理，避免sql注入问题或其他安全问题。
+
+**where(cond:object)**
+object格式的条件使用key值作为字段名。value值即为条件的值。
+
+**如何使用OR**
+
+```javascript
+//SELECT id,username,role,level FROM users WHERE (role = 'user' OR level > 1) AND is_active=1;
+pqorm.model('users')
+    .where('(role=? OR level > ?)', ['user', 1])
+    .where({is_active: 1})
+    .select(['id', 'username', 'role', 'level'])
+```
+
+**where 示例1**
+
+```javascript
+//SELECT * FROM content where tags ILIKE '%news%' AND is_delete=0 AND is_publish=1 ORDER BY create_time DESC;
+pqorm.model('content')
+     .where({
+         tags: {'ILIKE': '%news%'},
+         is_delete: 0,
+         is_publish: 1
+     })
+     .order('create_time', 'DESC')
+     .select()
+
+```
+
+**where 示例2**
+
+```javascript
+//SELECT * FROM content where tags ILIKE '%news%' AND is_delete=0 AND is_publish=1 AND group_id in (1,2,3) ORDER BY create_time DESC;
+pqorm.model('content')
+     .where({
+         tags: {'ILIKE': '%news%'},
+         is_delete: 0,
+         is_publish: 1
+     })
+     .where({group_id: [1,2,3]})
+     .order('create_time', 'DESC')
+     .select()
+
+```
 
 ## PostgreModel
 
