@@ -14,7 +14,14 @@ pm.schema = 'www';
   for (let i=0; i<20000; i++) {
     t = pm.model('goods').fetch();
     r = await t.where('take_on=? AND (goods_type=? OR goods_type=?)', [1, 'g','p'])
-              .select('id,goods_name,image_thumb,inventory');
+                .where({info: null})
+                .where({
+                  hid: {
+                    'is not' : null,
+                    'ilike' : '%x__%'
+                  }
+                })
+                .select('id,goods_name,image_thumb,inventory');
 
     r = await pm.model('user_msg')
                 .fetch()

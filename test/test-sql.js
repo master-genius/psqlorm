@@ -40,6 +40,13 @@ let pm = new TestModel(m);
   r = await m.model('point_log')
           .fetch()
           .where({role: 'user', id : ['qwe','123','wee12','233e']})
+          .where({
+            openid: null,
+            info: {
+              'is not': null,
+              'ilike': '%teacher%'
+            }
+          })
           .update({
             '@points' : 'points+5',
             point_type : 'increase'
