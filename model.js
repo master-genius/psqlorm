@@ -283,7 +283,15 @@ class Model {
         if (t === 'number' || t === 'string') {
           tmp.push(`${k}=${this.qoute(cond[k])}`);
         } else if (t === 'object') {
+          if (cond[k] === null) {
+            tmp.push(`${k} is null`);
+            continue;
+          }
           for (let ks in cond[k]) {
+            if (cond[k][ks] === null) {
+              tmp.push(`${k} ${ks} null`);
+              continue;
+            }
             tmp.push(`${k} ${ks} ${this.qoute(cond[k][ks])}`);
           }
         }
@@ -338,9 +346,9 @@ class Model {
 
   order (ostr, otype = '') {
     if (this.sqlUnit.order) {
-      this.sqlUnit.order += `,${ostr} ${otype}`;
+      this.sqlUnit.order += `,${ostr} ${otype} `;
     } else {
-      this.sqlUnit.order = `ORDER BY ${ostr} ${otype}`;
+      this.sqlUnit.order = `ORDER BY ${ostr} ${otype} `;
     }
 
     return this;

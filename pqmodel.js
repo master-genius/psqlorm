@@ -495,6 +495,10 @@ class PostgreModel {
     return this.orm.model().quote(a);
   }
 
+  order(by, type = '') {
+    return this.model().order(by, type);
+  }
+
   _checkFields (fields, options = {}) {
     if (!fields || !Array.isArray(fields)) return {ok: false, errcode: 'TYPE_WRONG'};
 
