@@ -116,12 +116,15 @@ class ${name} extends PostgreModel {
   //只有调用trigger的sql执行才会执行触发器函数。
   //在事务中，trigger()会根据状态标记自动识别是执行完sql出发还是事务提交以后再触发。。
 
-  //当调用create函数创建数据，会自动触发insert事件，此时会执行triggerInsert函数。
+  //示例函数，请根据实际需求修改代码。
   async create (data) {
-    return this.returning(['id', 'name']).trigger().insert(data);
+    return this.returning(['id', 'name']).insert(data);
   }
 
-  //事务处理示例函数。
+  /**
+   * 事务处理示例函数。
+   * 示例代码仅作基本使用的参考...
+   */
   async example_transaction (data) {
     //只有使用参数传递的db执行sql才是事务操作。
     /**
@@ -138,16 +141,15 @@ class ${name} extends PostgreModel {
         }
         
         /*
-        示例：获取users模型并绑定到db。如果不使用bind绑定，则执行不是事务操作。
+        示例：获取users模型并绑定到db。如果不使用bind绑定，则执行sql就不是事务操作。
         在当前目录中存在一个users.js，定义class Users，relate('Users')函数用于获取一个模型实例。
+        你可以只用db，并指定table：db.table('users').where({role: 'test'}).update(data)
         */
         /*
         let users = this.relate('Users').bind(db)
         await users.where({role: 'test'}).update(data)
         */
         
-        //示例代码仅作基本使用的参考...
-
         //此返回值将作为事务的返回结果，其等效形式为：handle.result = 'ok'
         return 'ok'
     })
