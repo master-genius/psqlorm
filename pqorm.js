@@ -113,8 +113,9 @@ pqorm.prototype.end = function () {
 };
 
 pqorm.initORM = (config, schema = null) => {
-  if (schema) this.schema = schema;
-  return new pqorm(new pg.Pool(config));
+  let orm = new pqorm(new pg.Pool(config));
+  if (schema) orm.schema = schema;
+  return orm;
 };
 
 pqorm.Model = pqmodel;
