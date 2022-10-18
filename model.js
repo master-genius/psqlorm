@@ -73,7 +73,7 @@ class Model {
 
     this.__fetch_sql__ = false;
 
-    this.stag = this.makeQuoteTag(6 + parseInt(Math.random() * 3));
+    this.stag = this.makeQuoteTag(5 + parseInt(Math.random() * 5));
 
     this.lstag = this.stag.substring(0, this.stag.length - 1);
 
@@ -133,11 +133,6 @@ class Model {
   makeQuoteTag (len = 5) {
     return '$_' + randstring(len, saltArr) + '_$';
   }
-
-  /* triggerBefore (on = true) {
-    this.__trigger_before__ = on;
-    return this;
-  } */
 
   trigger (on = true) {
     if (this.__transaction__) {
@@ -237,27 +232,33 @@ class Model {
    * @param {array} args 
    */  
   where (cond, args = []) {
+    let andstr = '';
     if (typeof cond === 'string') {
       let whstr = '';
-      if (cond.indexOf('?') < 0) {
-        whstr = cond;
+      let typ = typeof args;
+      if (typ === 'number' || typ === 'string') {
+          whstr = cond + '=' + (typ==='number' ? args : this.qoute(args));
       } else {
-        let carr = cond.split('?');
-        let condarr = [];
-        for (let i=0; i<args.length; i++) {
-          condarr.push(carr[i]);
-          condarr.push( this.qoute(args[i]) );
-        }
-        condarr.push(carr[carr.length-1]);
-        whstr = condarr.join('');
-        carr = condarr = null;
+          if (cond.indexOf('?') < 0) {
+            whstr = cond;
+          } else {
+            let carr = cond.split('?');
+            let condarr = [];
+            for (let i=0; i<args.length; i++) {
+              condarr.push(carr[i]);
+              condarr.push( this.qoute(args[i]) );
+            }
+            condarr.push(carr[carr.length-1]);
+            whstr = condarr.join('');
+            carr = condarr = null;
+          }
       }
 
-      if (this.sqlUnit.where.length > 0 && whstr.length > 0) {
-        this.sqlUnit.where += ' AND ';
+      if (this.sqlUnit.where && whstr) {
+        andstr = ' AND ';
       }
 
-      this.sqlUnit.where += whstr;
+      this.sqlUnit.where += andstr + whstr;
 
     } else if (typeof cond === 'object') {
       let tmp = [];
@@ -280,7 +281,9 @@ class Model {
         
         t = typeof cond[k];
 
-        if (t === 'number' || t === 'string') {
+        if (t === 'number') {
+          tmp.push(`${k}=${cond[k]}`);
+        } else if (t === 'string') {
           tmp.push(`${k}=${this.qoute(cond[k])}`);
         } else if (t === 'object') {
           if (cond[k] === null) {
@@ -298,10 +301,10 @@ class Model {
       }
       
       if (tmp.length > 0) {
-        if (this.sqlUnit.where.length > 0) {
-          this.sqlUnit.where += ' AND ';
+        if (this.sqlUnit.where) {
+          andstr = ' AND ';
         }
-        this.sqlUnit.where += tmp.join(' AND ');
+        this.sqlUnit.where += andstr + tmp.join(' AND ');
       }
       
     }
