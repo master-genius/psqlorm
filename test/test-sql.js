@@ -39,7 +39,7 @@ let pm = new TestModel(m);
 
   r = await m.model('point_log')
           .fetch()
-          .where({role: 'user', id : ['qwe','123','wee12','233e']})
+          .where({role: 'user', id : ['qwe','123','wee12','233e'], level: 2.5})
           .where({
             openid: null,
             info: {
@@ -56,6 +56,8 @@ let pm = new TestModel(m);
   r = await m.model('point_log')
           .fetch()
           .where({id : ['qwe','123','wee12','233e'], role : 'user'})
+          .where('is_test', 1)
+          .where('status', 'ok')
           .where({
               point_time : {
                 '>' : Date.now() - 864000000,
