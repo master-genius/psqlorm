@@ -1383,24 +1383,31 @@ class PostgreModel {
   }
 
   async _syncReferences (curTableName, debug = false) {
-    let sql = `SELECT * FROM pg_constraint WHERE connamespace=${this.schema_oid} AND contype='f'`
-              + ` AND conname ILIKE $$${this.tableName}_%$$`;
-    let r = await this.db.query(sql);
-    let refs = r.rows;
-
-    let ref_keys = [];
-
-    for (let a of refs) {
-      ref_keys.push(a.conname);
-    }
-
     let tmp_col;
     let refs_now_list = [];
+    let all_keys = [];
     let ind = 0;
+    let qtag = Math.random().toString(16).substring(2)
+
     for (let k in this.table.column) {
+      all_keys.push(`$_${qtag}_$${this.tableName}_${k}_fkey$_${qtag}_$`);
       tmp_col = this.table.column[k];
       if (!tmp_col.ref) continue;
+
       refs_now_list.push(tmp_col.refconstraint);
+    }
+
+    let ref_keys = [];
+    let sql = '';
+    if (all_keys.length > 0) {
+      sql = `SELECT * FROM pg_constraint WHERE connamespace=${this.schema_oid} AND contype='f'`
+                + ` AND conname IN (${all_keys.join(',')})`;
+      let r = await this.db.query(sql);
+      let refs = r.rows;
+
+      for (let a of refs) {
+        ref_keys.push(a.conname);
+      }
     }
 
     for (let a of ref_keys) {
