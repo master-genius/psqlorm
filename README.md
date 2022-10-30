@@ -567,17 +567,17 @@ pqorm.model('users').reutrning('id').trigger().insert(data);
 
 SELECT ... FOR UPDATE操作，查询的行锁定。具体参考Postgresql的文档。此操作主要用在事务处理中，锁定查询到的行，其他事务无法对锁定的行进行修改。
 
-如果传递参数true或'key'表示执行：
+如果传递参数true或'no key'表示执行：
 
-SELECT ... FOR KEY UPDATE
+SELECT ... FOR NO KEY UPDATE
 
 - Model.prototype.forShare(k = '')
 
 SELECT ... FOR SAHRE
 
-如果传递参数true或'no key'表示执行：
+如果传递参数true或'key'表示执行：
 
-SELECT ... FOR NO KEY SHARE
+SELECT ... FOR KEY SHARE
 
 > 数据库相关文档：<a target=_blank href="http://www.postgres.cn/docs/14/explicit-locking.html">显示锁定</a>
 
