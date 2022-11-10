@@ -4,6 +4,10 @@ const makeId = require('./makeId.js');
 
 const randstring = require('./randstring.js');
 
+let forbidColumnName = [
+  'like', 'ilike'
+];
+
 class PostgreModel {
 
   constructor (pqorm = null) {
@@ -95,7 +99,6 @@ class PostgreModel {
 
     this.makeId = makeId;
 
-    
     if (!global.__psqlorm_relate__) global.__psqlorm_relate__ = {};
 
     process.nextTick(async () => {
@@ -813,6 +816,30 @@ class PostgreModel {
     return await this.db.query(`create schema if not exists ${schema}`);
   }
 
+  _checkFixColumn() {
+    let col = '';
+    let illegal_count = 0;
+
+    for (let k in this.table.column) {
+      col = k.toLowerCase()
+      if (forbidColumnName.indexOf(col) >= 0) {
+        setTimeout(() => {
+          console.error(`\x1b[2;31;47m!!!${this.tableName} column ${k} 命名和sql关键字冲突，请修改。\x1b[0m`);
+        }, 900);
+        illegal_count++;
+      }
+
+      if (col !== k) {
+        setTimeout(() => {
+          console.error(`\x1b[2;31;47m!!!${this.tableName} 因为postgresql特点，column ${k}会被转换为小写，这容易导致一些问题，请在代码中修改字段名字为小写。\x1b[0m`);
+        }, 900);
+        illegal_count++;
+      }
+    }
+
+    return illegal_count > 0 ? false : true;
+  }
+
   /**
    * 
    * @param debug {boolean} 
@@ -832,7 +859,11 @@ class PostgreModel {
       return false;
     }
 
-    console.log(`start to sync table ${this.tableName}`)
+    if (!this._checkFixColumn()) {
+      return false;
+    }
+
+    console.log(`开始同步表结构(start to sync table) ${this.tableName}`)
 
     if (this.table.column === undefined || typeof this.table.column !== 'object') {
       throw new Error('column属性必须为object类型');
@@ -981,7 +1012,7 @@ class PostgreModel {
     await this._syncReferences(curTableName, debug);
 
     if (debug) {
-      console.log(' - END - ');
+      console.log(' - 表结构同步完成 - ');
     }
 
   }
@@ -1026,7 +1057,7 @@ class PostgreModel {
     let sql = '';
 
     if (debug) {
-      console.log('-- checking columns...');
+      console.log('-- 检测并同步columns(checking columns)...');
     }
 
     for (let k in this.table.column) {
@@ -1195,7 +1226,7 @@ class PostgreModel {
       if (tmp === undefined || tmp.drop || tmp.ignore) {
         
         if (debug) {
-          console.error( ` -- Ignore index ${indname} -- set ignore or drop or it is undefined.` );
+          console.error( ` -- 忽略 index ${indname} -- 请检查索引相关的column是否存在。` );
         }
 
         return false;
@@ -1236,7 +1267,7 @@ class PostgreModel {
     }
 
     if (debug) {
-      console.log('-- checking index...');
+      console.log('-- 检查并同步索引(checking index)...');
     }
 
     let indname = '';
@@ -1305,7 +1336,7 @@ class PostgreModel {
     }
 
     if (debug) {
-      console.log('-- checking unique index...');
+      console.log('-- 检查并同步unique索引(checking unique index)...');
     }
 
     if (!this.table.unique || !Array.isArray(this.table.unique) ) {

@@ -255,7 +255,7 @@ class Model {
       }
 
       if (this.sqlUnit.where && whstr) {
-        andstr = ' AND ';
+        andstr = ' and ';
       }
 
       this.sqlUnit.where += andstr + whstr;
@@ -275,7 +275,7 @@ class Model {
           for (let i = 0; i < cond[k].length; i++) {
             vals.push(this.qoute(cond[k][i]));
           }
-          tmp.push(`${k} IN (${vals.join(',')})`);
+          tmp.push(`${k} in (${vals.join(',')})`);
           continue;
         }
         
@@ -302,9 +302,9 @@ class Model {
       
       if (tmp.length > 0) {
         if (this.sqlUnit.where) {
-          andstr = ' AND ';
+          andstr = ' and ';
         }
-        this.sqlUnit.where += andstr + tmp.join(' AND ');
+        this.sqlUnit.where += andstr + tmp.join(' and ');
       }
       
     }
@@ -313,37 +313,37 @@ class Model {
 
   forUpdate (k = '') {
     if (!k) {
-      this.sqlUnit.selectFor = ' FOR UPDATE';
+      this.sqlUnit.selectFor = ' for update';
     } else {
-      this.sqlUnit.selectFor = ' FOR NO KEY UPDATE';
+      this.sqlUnit.selectFor = ' for no key update';
     }
     return this;
   }
 
   forShare (k = '') {
     if (!k) {
-      this.sqlUnit.selectFor = ' FOR SHARE';
+      this.sqlUnit.selectFor = ' for share';
     } else {
-      this.sqlUnit.selectFor = ' FOR KEY SHARE';
+      this.sqlUnit.selectFor = ' for key share';
     }
     return this;
   }
 
-  join (table, on, join_type = 'INNER') {
-    this.sqlUnit.join += `${join_type} JOIN ${this.__schema__}.${table} ON ${on} `;
+  join (table, on, join_type = 'inner') {
+    this.sqlUnit.join += `${join_type} join ${this.__schema__}.${table} on ${on} `;
     return this;
   }
 
   leftJoin (table, on) {
-    return this.join(table, on, 'LEFT');
+    return this.join(table, on, 'left');
   }
 
   rightJoin(table, on) {
-    return this.join(table, on, 'RIGHT');
+    return this.join(table, on, 'right');
   }
 
   group (grpstr) {
-    this.sqlUnit.group = `GROUP BY ${grpstr} `;
+    this.sqlUnit.group = `group by ${grpstr} `;
     return this;
   }
 
@@ -351,7 +351,7 @@ class Model {
     if (this.sqlUnit.order) {
       this.sqlUnit.order += `,${ostr} ${otype} `;
     } else {
-      this.sqlUnit.order = `ORDER BY ${ostr} ${otype} `;
+      this.sqlUnit.order = `order by ${ostr} ${otype} `;
     }
 
     return this;
@@ -359,9 +359,9 @@ class Model {
 
   limit (count, offset = 0) {
     if (count <= 0) {
-      this.sqlUnit.limit = `OFFSET ${offset}`;
+      this.sqlUnit.limit = `offset ${offset}`;
     } else {
-      this.sqlUnit.limit = `LIMIT ${count} OFFSET ${offset}`;
+      this.sqlUnit.limit = `limit ${count} offset ${offset}`;
     }
 
     return this;
@@ -395,22 +395,22 @@ class Model {
     switch (this.sqlUnit.command) {
       case commandTable.SELECT:
       case commandTable.GET:
-        sql = `SELECT ${this.sqlUnit.fields} FROM ${schemaTable} ${this.sqlUnit.join} `
-            + `${this.sqlUnit.where.length > 0 ? 'WHERE ' : ''}${this.sqlUnit.where} `
+        sql = `select ${this.sqlUnit.fields} from ${schemaTable} ${this.sqlUnit.join} `
+            + `${this.sqlUnit.where.length > 0 ? 'where ' : ''}${this.sqlUnit.where} `
             + `${this.sqlUnit.group}${this.sqlUnit.order}${this.sqlUnit.limit}${this.sqlUnit.selectFor};`;
         break;
 
       case commandTable.DELETE:
-        sql = `DELETE FROM ${schemaTable} ${this.sqlUnit.where.length > 0 ? 'WHERE ' : ''}${this.sqlUnit.where}${this.sqlUnit.returning};`;
+        sql = `delete from ${schemaTable} ${this.sqlUnit.where.length > 0 ? 'where ' : ''}${this.sqlUnit.where}${this.sqlUnit.returning};`;
         break;
 
       case commandTable.UPDATE:
-        sql = `UPDATE ${schemaTable} SET ${this.sqlUnit.values} ${this.sqlUnit.where.length > 0 ? ' WHERE ' : ''} ${this.sqlUnit.where}${this.sqlUnit.returning};`;
+        sql = `update ${schemaTable} set ${this.sqlUnit.values} ${this.sqlUnit.where.length > 0 ? ' where ' : ''} ${this.sqlUnit.where}${this.sqlUnit.returning};`;
         break;
 
       case commandTable.INSERT:
       case commandTable.INSERTS:
-        sql = `INSERT INTO ${schemaTable} ${this.sqlUnit.fields} VALUES ${this.sqlUnit.values}${this.sqlUnit.returning};`;
+        sql = `insert into ${schemaTable} ${this.sqlUnit.fields} values ${this.sqlUnit.values}${this.sqlUnit.returning};`;
         break;
     }
 
@@ -438,11 +438,6 @@ class Model {
 
     try {
       let ename;
-
-      /* if (is_trigger_b && this.tableTrigger) {
-        ename = beforeEventName[comm];
-        ename && this.tableTrigger.emit(ename, this.__schema__, this.tableName, ename, sql, null);
-      } */
 
       let r = await this.db.query(sql);
 
@@ -588,7 +583,7 @@ class Model {
   }
 
   async count (count_column = '*') {
-    let r = await this.get(`COUNT(${count_column}) as total`);
+    let r = await this.get(`count(${count_column}) as total`);
     return parseInt(r.total);
   }
 
@@ -704,14 +699,14 @@ class Model {
       this.__free_lock__ = true;
       this.__transaction__ = true;
 
-      await this.db.query('BEGIN');
+      await this.db.query('begin');
       
       let rval = await callback(this, finalRet);
       if (finalRet.ok === false) {
         throw new Error(finalRet.message);
       }
 
-      await this.db.query('COMMIT');
+      await this.db.query('commit');
 
       if (this.commitTriggers.length > 0 && this.tableTrigger) {
         let tlen = this.commitTriggers.length;
@@ -726,7 +721,7 @@ class Model {
       ;(finalRet.ok === null) && (finalRet.ok = true);
       ;(rval !== undefined && finalRet.result === null) && (finalRet.result = rval);
     } catch (err) {
-      this.db.query('ROLLBACK');
+      this.db.query('rollback');
       finalRet.message = err.message || 'Transaction failed';
       finalRet.ok = false;
       finalRet.error = err;
@@ -743,3 +738,4 @@ class Model {
 }
 
 module.exports = Model;
+
