@@ -114,7 +114,7 @@ class ${name} extends PostgreModel {
 
   //执行触发器需要显式调用trigger或在事务中调用triggerCommit。
   //只有调用trigger的sql执行才会执行触发器函数。
-  //在事务中，trigger()会根据状态标记自动识别是执行完sql出发还是事务提交以后再触发。。
+  //在事务中，trigger()会根据状态标记自动识别是执行完sql触发还是事务提交以后再触发。。
 
   //示例函数，请根据实际需求修改代码。
   async create (data) {
