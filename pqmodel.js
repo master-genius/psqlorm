@@ -819,6 +819,7 @@ class PostgreModel {
   _checkFixColumn() {
     let col = '';
     let illegal_count = 0;
+    let cobj;
 
     for (let k in this.table.column) {
       col = k.toLowerCase()
@@ -827,11 +828,21 @@ class PostgreModel {
           console.error(`\x1b[2;31;47m!!!${this.tableName} column ${k} 命名和sql关键字冲突，请修改。\x1b[0m`);
         }, 900);
         illegal_count++;
+        continue;
       }
 
       if (col !== k) {
         setTimeout(() => {
           console.error(`\x1b[2;31;47m!!!${this.tableName} 因为postgresql特点，column ${k}会被转换为小写，这容易导致一些问题，请在代码中修改字段名字为小写。\x1b[0m`);
+        }, 900);
+        illegal_count++;
+        continue;
+      }
+
+      cobj = this.table.column[k];
+      if (!cobj.type && !cobj.ref) {
+        setTimeout(() => {
+          console.error(`\x1b[2;31;47m!! column ${col} 没有设置type指定类型，也没有使用ref指定外键关联，请检查。\x1b[0m`);
         }, 900);
         illegal_count++;
       }
