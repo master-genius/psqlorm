@@ -197,7 +197,7 @@ class PostgreModel {
     return this.model().returning(r);
   }
 
-  join (m, on, join_type = 'INNER') {
+  join (m, on, join_type = 'inner') {
     let tname;
 
     if (typeof m === 'string') {
@@ -215,7 +215,7 @@ class PostgreModel {
    *
    * */
   innerJoin (m, on) {
-    return this.join(m, on, 'INNER');
+    return this.join(m, on, 'inner');
   }
 
   /**
@@ -225,7 +225,7 @@ class PostgreModel {
    *  - join条件
    * */
   leftJoin (m, on) {
-    return this.join(m, on, 'LEFT');
+    return this.join(m, on, 'left');
   }
 
   /**
@@ -234,7 +234,7 @@ class PostgreModel {
    *
    * */
   rightJoin (m, on, options = {}) {
-    return this.join(m, on, 'RIGHT');
+    return this.join(m, on, 'right');
   }
 
   /**
