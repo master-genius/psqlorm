@@ -200,6 +200,7 @@ class PostgreModel {
     m.__trigger__ = this.__trigger__
     m.__auto_id__ = this.__auto_id__
     m.table = this.table
+    m.primaryKey = this.primaryKey
     return m
   }
 
