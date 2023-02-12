@@ -8,16 +8,21 @@ let forbidColumnName = [
   'like', 'ilike'
 ];
 
+function modelForTransaction(tname = '') {
+  if (tname) return this.__bind_model__.table(tname);
+  return this.__bind_model__;
+}
+
 class PostgreModel {
 
-  constructor (pqorm = null) {
+  constructor (pqorm = null, init = true) {
     if (pqorm) {
       this.orm = pqorm;
       this.db = pqorm.db;
       this.odb = pqorm.db;
     }
 
-    this.autoId = true;
+    this.__auto_id__ = true;
 
     this.selectField = '*';
 
@@ -99,15 +104,21 @@ class PostgreModel {
 
     this.makeId = makeId;
 
-    if (!global.__psqlorm_relate__) global.__psqlorm_relate__ = {};
+    this.pools = [];
+    this.maxPool = 100;
+    this.__bind_model__ = null;
 
-    process.nextTick(async () => {
-      try {
-        await this.__init__();
-      } catch (err) {
-        console.error(err);
-      }
-    });
+    if (init) {
+      if (!global.__psqlorm_relate__) global.__psqlorm_relate__ = {};
+
+      process.nextTick(async () => {
+        try {
+          await this.__init__();
+        } catch (err) {
+          console.error(err);
+        }
+      });
+    }
 
   }
 
@@ -115,6 +126,22 @@ class PostgreModel {
     this.relate();
     if (!this.orm.tableTrigger.hasTable(this.tableName))
       this.initTrigger();
+
+    if (this.primaryKey.indexOf(',') > 0) {
+      this.primaryKey = this.primaryKey.split(',').filter(p => p.length > 0);
+    }
+
+    if (Array.isArray(this.primaryKey)) {
+      if (this.primaryKey.length === 0) this.primaryKey = 'id';
+      else if (this.primaryKey.length === 1) this.primaryKey = this.primaryKey[0];
+    }
+
+    //把table变成函数对象。
+    let _table = function (name) {return this.model(name);};
+    for (let k in this.table) {
+      _table[k] = this.table[k];
+    }
+    this.table = _table;
   }
 
   initTrigger () {
@@ -139,7 +166,6 @@ class PostgreModel {
    * 在能够找到更好方式之前，暂时使用global.__psqlorm_relate__来记录进而避免循环关联。
    */
   relate (name = '') {
-
     let n = this.relateName || this.constructor.name || this.tableName;
 
     if (!global.__psqlorm_relate__[n]) {
@@ -155,13 +181,45 @@ class PostgreModel {
     return null;
   }
 
-  model (schema = null) {
-    let m = this.orm.model(this.tableName, schema);
-    m.__auto_id__ = this.autoId;
+  model (tname='') {
+    let m = this.orm.model(tname || this.tableName);
+    m.__auto_id__ = this.__auto_id__;
     m.__id_len__ = this.idLen;
     m.__id_pre__ = this.idPre;
     m.__primary_key__ = this.primaryKey;
     return m;
+  }
+
+  newForTransaction(db) {
+    let m = new this.constructor(this.orm, false)
+    m.model = modelForTransaction
+    m.__bind_model__ = db
+    m.pools = []
+    m.getPool = null
+    m.freePool = null
+    m.__trigger__ = this.__trigger__
+    m.__auto_id__ = this.__auto_id__
+    m.table = this.table
+    return m
+  }
+
+  getPool(db) {
+    let m = this.pools.pop()
+    if (m) {
+      m.__bind_model__ = db
+      m.model = modelForTransaction
+      return m
+    }
+
+    return this.newForTransaction(db)
+  }
+
+  freePool(m) {
+    if (this.pools.length < this.maxPool) this.pools.push(m)
+  }
+
+  autoId(b = null) {
+    return this.model().autoId(b === null ? this.__auto_id__ : b);
   }
 
   /**
@@ -174,7 +232,12 @@ class PostgreModel {
   }
 
   schema (name) {
-    return this.model(name);
+    return this.model().schema(name);
+  }
+
+  _mschema (name = null) {
+    let h = this.model();
+    return name ? h.schema(name) : h;
   }
 
   connect () {
@@ -182,7 +245,19 @@ class PostgreModel {
   }
 
   bind (db) {
-    return this.model().bind(db);
+    if (this.__bind_model__) return this;
+
+    //要绑定到一个PostgreModel实例，在事务操作中，需要其他模型上的方法，并保证事务操作的原子性。
+    if (db && (this !== db) && (db instanceof PostgreModel) && db.__bind_model__) {
+      let mdb = this.model();
+      mdb.bind(db.__bind_model__);
+      return this.getPool(mdb);
+    }
+
+    if (db.constructor.name === 'Model')
+      return this.model().bind(db);
+
+    throw new Error('db 不是一个可以进行bind操作的对象。');
   }
 
   trigger (on = true) {
@@ -247,9 +322,11 @@ class PostgreModel {
    */
   async insert (data, options = {schema: null}) {
 
-    let h = this.model(options.schema);
+    let h = this._mschema(options.schema);
 
-    if (data[this.primaryKey] === undefined && this.autoId) {
+    if (this.primaryKey && typeof this.primaryKey === 'string'
+      && data[this.primaryKey] === undefined && this.__auto_id__)
+    {
       data[this.primaryKey] = this.makeId(this.idLen, this.idPre);
       h.returning(this.primaryKey);
     }
@@ -273,9 +350,9 @@ class PostgreModel {
     
     let idlist = [];
 
-    let h = this.model(options.schema);
+    let h = this._mschema(options.schema);
 
-    if (this.autoId) {
+    if (this.__auto_id__ && this.primaryKey && typeof this.primaryKey === 'string') {
       h.returning(this.primaryKey);
 
       for (let i=0; i < data.length; i++) {
@@ -302,7 +379,8 @@ class PostgreModel {
    * @returns Promise
    */
   async update (cond, data, options={schema: null}) {
-    let h = this.model(options.schema);
+    let h = this._mschema(options.schema);
+
     options.returning && (h = h.returning(options.returning));
 
     return h.where(cond).update(data);
@@ -319,7 +397,11 @@ class PostgreModel {
    * @returns object
    */
   async select (cond, args = {schema: null}) {
-    let t = this.model(args.schema).where(cond);
+    if (!cond || typeof cond === 'string' || Array.isArray(cond)) {
+      return this.model().select(cond ? cond : '*');
+    }
+
+    let t = this._mschema(args.schema).where(cond);
 
     let offset = args.offset || 0;
 
@@ -345,9 +427,7 @@ class PostgreModel {
    * @returns object
    */
   async get (cond = {}, options = {field: null, schema: null}) {
-    return this.model(options.schema)
-               .where(cond)
-               .get(options.field || this.selectField);
+    return this._mschema(options.schema).where(cond).get(options.field || this.selectField);
   }
 
   /**
@@ -359,7 +439,7 @@ class PostgreModel {
    * @returns Promise
    */
   async delete (cond, options = {schema: null}) {
-    let h = this.model(options.schema);
+    let h = this._mschema(options.schema);
     options.returning && (h = h.returning(options.returning));
 
     return h.where(cond).delete();
@@ -373,8 +453,15 @@ class PostgreModel {
    * @returns Promise
    */
   async count (cond = {}, options = {column:'*', schema: null}) {
+    if (!options) options = {};
+
+    if (typeof cond === 'string') {
+      options.column = cond;
+      cond = {};
+    }
+
     let col = options.column || '*';
-    return this.model(options.schema).where(cond).count(col);
+    return this._mschema(options.schema).where(cond).count(col);
   }
 
   _fmtNum (m, options) {
@@ -424,11 +511,18 @@ class PostgreModel {
    * @returns Promise
    */
   async max (cond = {}, options = {schema: null}) {
+    if (!options) options = {};
+
+    if (typeof cond === 'string') {
+      options.field = cond;
+      cond = {};
+    }
+
     if (typeof options === 'string') options = {field: options};
 
     this.throwNoFieldsError(options);
     
-    let m = await this.model(options.schema).where(cond).max(options.field);
+    let m = await this._mschema(options.schema).where(cond).max(options.field);
 
     if (!options.to) return m;
 
@@ -444,11 +538,17 @@ class PostgreModel {
    * @returns object
    */
   async min (cond = {}, options = {schema: null}) {
+    if (!options) options = {};
+
+    if (typeof cond === 'string') {
+      options.field = cond;
+      cond = {};
+    }
     if (typeof options === 'string') options = {field: options};
 
     this.throwNoFieldsError(options);
     
-    let m = await this.model(options.schema).where(cond).min(options.field);
+    let m = await this._mschema(options.schema).where(cond).min(options.field);
 
     if (!options.to) return m;
 
@@ -464,11 +564,17 @@ class PostgreModel {
    * @returns Promise
    */
   async avg (cond = {}, options = {schema: null}) {
+    if (!options) options = {};
+
+    if (typeof cond === 'string') {
+      options.field = cond;
+      cond = {};
+    }
     if (typeof options === 'string') options = {field: options};
 
     this.throwNoFieldsError(options);
 
-    let m = await this.model(options.schema).where(cond).avg(options.field);
+    let m = await this._mschema(options.schema).where(cond).avg(options.field);
     if (!options.to) return m;
 
     return this._fmtNum(m, options);
@@ -483,11 +589,17 @@ class PostgreModel {
    * @returns Promise
    */
   async sum (cond = {}, options = {schema: null}) {
+    if (!options) options = {};
+
+    if (typeof cond === 'string') {
+      options.field = cond;
+      cond = {};
+    }
     if (typeof options === 'string') options = {field: options};
 
     this.throwNoFieldsError(options);
 
-    let m = await this.model(options.schema).where(cond).sum(options.field);
+    let m = await this._mschema(options.schema).where(cond).sum(options.field);
 
     if (!options.to) return m;
 
@@ -651,6 +763,10 @@ class PostgreModel {
     let updateList = [];
 
     let idlist = [];
+    let idmap = {};
+    let val_tmp = '';
+
+    let is_primary_field = uid && (typeof uid === 'string');
 
     for (let a of options.data) {
       if (typeof a !== 'object' || Array.isArray(a) ) {
@@ -663,11 +779,22 @@ class PostgreModel {
         }
       }
       
-      ;(a[uid] === undefined) && createList.push(a);
+      //主键id是字符串，说明只有一个字段作为主键，如果数据有主键则有可能是更新，否则就是创建。
+      if (is_primary_field) {
+        ;(a[uid] === undefined) && createList.push(a);
 
-      if (a[uid] !== undefined) {
+        if (a[uid] !== undefined) {
+          updateList.push(a);
+          idlist.push(a[uid]);
+        }
+      } else if (uid && Array.isArray(uid)) {
+        //联合主键把主键名字作为条件，只需要添加updateList，交给后续的程序检测处理。
         updateList.push(a);
-        idlist.push(a[uid]);
+        idmap = {};
+        uid.forEach(k => {
+          idmap[k] = a[k];
+        });
+        idlist.push(idmap);
       }
     }
     
@@ -686,8 +813,12 @@ class PostgreModel {
         if (idlist.length > 0) {
           switch (options.update) {
             case 'delete-insert':
-              cond[uid] = idlist;
-              await db.where(cond).delete();
+              if (is_primary_field) {
+                cond[uid] = idlist;
+                await db.where(cond).delete();
+              } else {
+                for (let a of idlist) await db.where(a).delete();
+              }
               await db.insertAll(updateList);
               break;
 
@@ -695,26 +826,54 @@ class PostgreModel {
             case 'update':
             case 'none':
             default:
-              cond[uid] = idlist;
-              let chklist = await db.where(cond).select(uid);
+              let chklist = [];
+              if (is_primary_field) {
+                cond[uid] = idlist;
+                chklist = await db.where(cond).select(uid);
+              } else {
+                chklist = [];
+                for (let a of idlist) {
+                  val_tmp = await db.where(a).get(uid);
+                  val_tmp && chklist.push(val_tmp);
+                }
+              }
               let r;
               let updInsert = [];
               let realUpdate = [];
-              let idmap = {};
+              idmap = {};
 
               chklist.length > 0 && chklist.forEach(a => {
-                idmap[ a[uid] ] = a;
+                if (is_primary_field)
+                  idmap[ a[uid] ] = a;
+                else {
+                  ks = [];
+                  uid.forEach(x => { ks.push(a[x]) });
+                  idmap[ ks.join() ] = a;
+                }
               });
 
               for (let d of updateList) {
-                if (idmap[ d[uid] ]) realUpdate.push(d);
-                else updInsert.push(d);
+                if (is_primary_field) {
+                  if (idmap[ d[uid] ]) realUpdate.push(d);
+                  else updInsert.push(d);
+                } else {
+                  ks = [];
+                  uid.forEach(x => { ks.push(d[x]) });
+                  if (idmap[ks.join()]) realUpdate.push(d);
+                  else updInsert.push(d);
+                }
               }
 
               if (realUpdate.length > 0 && options.update === 'update') {
+                cond = {};
                 for (let d of realUpdate) {
-                  cond[uid] = d[uid];
-                  await db.where(cond).update(d);
+                  if (is_primary_field) {
+                    cond[uid] = d[uid];
+                    await db.where(cond).update(d);
+                  } else {
+                    uid.forEach(x => {cond[x] = d[x]});
+                    await db.where(cond).update(d);
+                  }
                 }
               }
 
@@ -761,7 +920,13 @@ class PostgreModel {
     }
 
     return await this.orm.transaction(async (db, handle) => {
-      return await callback(db.table(this.tableName), handle);
+      db = db.table(this.tableName);
+      
+      let hdb = this.getPool(db);
+      let result = await callback(hdb, handle);
+      this.freePool(hdb);
+
+      return result;
     }, schema);
 
   }
@@ -980,7 +1145,12 @@ class PostgreModel {
 
       }
 
-      sql = `${sql.trim().substring(0, sql.length-1)})`;
+      //检测是否为联合主键
+      if (this.primaryKey && Array.isArray(this.primaryKey)) {
+        sql = `${sql.trim()} primary key(${this.primaryKey.join()}))`;
+      } else {
+        sql = `${sql.trim().substring(0, sql.length-1)})`;
+      }
       
       if (debug) {
         console.log(sql);
