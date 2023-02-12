@@ -128,7 +128,7 @@ class ${name} extends PostgreModel {
   async example_transaction (data) {
     //只有使用参数传递的db执行sql才是事务操作。
     /**
-     * @param {Model} db db是Model实例，可以调用Model上的方法。
+     * @param {Model} db db是PostgreModel实例。
      * @param {Object} handle handle用于设置事务执行状态或返回数据。
      */
     let ret = await this.transaction(async (db, handle) => {
