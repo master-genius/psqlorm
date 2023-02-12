@@ -43,9 +43,7 @@ class Model {
     this.db = db;
 
     this.tableName = tableName;
-
     this.__schema__ = schema || 'public';
-
     this._schema = this.__schema__;
 
     Object.defineProperty(this, 'parent', {
@@ -66,15 +64,11 @@ class Model {
 
     //用于事务处理时的锁定。
     this.__free_lock__ = false;
-
     this.state = state;
-
     this.__state__ = this.state.USING;
-
     this.__fetch_sql__ = false;
 
     this.stag = this.makeQuoteTag(5 + parseInt(Math.random() * 5));
-
     this.lstag = this.stag.substring(0, this.stag.length - 1);
 
     this.sqlUnit = {
