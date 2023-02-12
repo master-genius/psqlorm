@@ -510,7 +510,7 @@ class Model {
 
   async insert (data) {
     if (this.__auto_id__ 
-      && this.__primary_key__ 
+      && this.__primary_key__ && typeof this.__primary_key__ === 'string' 
       && data[this.__primary_key__] === undefined)
     {
       data[this.__primary_key__] = makeId(this.__id_len__, this.__id_pre__);
@@ -532,7 +532,7 @@ class Model {
       throw new Error('data must be array and length > 0');
     }
 
-    if (this.__auto_id__ && this.__primary_key__) {
+    if (this.__auto_id__ && this.__primary_key__ && typeof this.__primary_key__ === 'string') {
       for (let i = 0; i < data.length; i++) {
         if (data[i][this.__primary_key__] === undefined)
           data[i][this.__primary_key__] = makeId(this.__id_len__, this.__id_pre__);
@@ -659,13 +659,14 @@ class Model {
    * @returns {this}
    */
   bind (db) {
-    if (db.constructor.name === 'Model' || db.db) {
+    if (db.constructor.name === 'Model' || (db.db && db.db.constructor.name === 'BoundPool') || (db instanceof Model))
+    {
       this.db = db.db;
       this.commitTriggers = db.commitTriggers;
       //this.__trigger_commit__ = db.__trigger_commit__;
       this.__free_lock__ = true;
       this.__transaction__ = db.__transaction__;
-    } else {
+    } else if (db.constructor.name === 'BoundPool' || db.constructor.name === 'Client') {
       this.db = db;
     }
     return this;
