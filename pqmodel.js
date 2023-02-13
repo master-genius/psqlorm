@@ -8,11 +8,6 @@ let forbidColumnName = [
   'like', 'ilike'
 ];
 
-function modelForTransaction(tname = '') {
-  if (tname) return this.__bind_model__.table(tname);
-  return this.__bind_model__;
-}
-
 class PostgreModel {
 
   constructor (pqorm = null, init = true) {
@@ -105,7 +100,7 @@ class PostgreModel {
     this.makeId = makeId;
 
     this.pools = [];
-    this.maxPool = 100;
+    this.maxPool = 150;
     this.__bind_model__ = null;
 
     if (init) {
@@ -181,18 +176,19 @@ class PostgreModel {
     return null;
   }
 
-  model (tname='') {
+  model(tname='') {
     let m = this.orm.model(tname || this.tableName);
     m.__auto_id__ = this.__auto_id__;
     m.__id_len__ = this.idLen;
     m.__id_pre__ = this.idPre;
     m.__primary_key__ = this.primaryKey;
+    if (this.__bind_model__) m.bind(this.__bind_model__);
     return m;
   }
 
   newForTransaction(db) {
     let m = new this.constructor(this.orm, false)
-    m.model = modelForTransaction
+    //model函数会检测此项并自动绑定
     m.__bind_model__ = db
     m.pools = []
     m.getPool = null
@@ -208,7 +204,6 @@ class PostgreModel {
     let m = this.pools.pop()
     if (m) {
       m.__bind_model__ = db
-      m.model = modelForTransaction
       return m
     }
 
@@ -216,6 +211,7 @@ class PostgreModel {
   }
 
   freePool(m) {
+    this.__bind_model__ = null
     if (this.pools.length < this.maxPool) this.pools.push(m)
   }
 
@@ -228,24 +224,24 @@ class PostgreModel {
    * @param {(string|object)} cond 条件，如果是字符串，args表示字符串中?要替换的参数
    * @param {array} args 
    */
-  where (cond, args = []) {
+  where(cond, args = []) {
     return this.model().where(cond, args);
   }
 
-  schema (name) {
+  schema(name) {
     return this.model().schema(name);
   }
 
-  _mschema (name = null) {
+  _mschema(name = null) {
     let h = this.model();
     return name ? h.schema(name) : h;
   }
 
-  connect () {
+  connect() {
     return this.model().connect();
   }
 
-  bind (db) {
+  bind(db) {
     if (this.__bind_model__) return this;
 
     //要绑定到一个PostgreModel实例，在事务操作中，需要其他模型上的方法，并保证事务操作的原子性。
@@ -261,7 +257,7 @@ class PostgreModel {
     throw new Error('db 不是一个可以进行bind操作的对象。');
   }
 
-  trigger (on = true) {
+  trigger(on = true) {
     return this.model().trigger(on);
   }
 
@@ -269,11 +265,11 @@ class PostgreModel {
     return this.model().triggerCommit(on);
   }
 
-  returning (r) {
+  returning(r) {
     return this.model().returning(r);
   }
 
-  join (m, on, join_type = 'inner') {
+  join(m, on, join_type = 'inner') {
     let tname;
 
     if (typeof m === 'string') {
@@ -290,7 +286,7 @@ class PostgreModel {
    * @param on {string} - join条件
    *
    * */
-  innerJoin (m, on) {
+  innerJoin(m, on) {
     return this.join(m, on, 'inner');
   }
 
@@ -300,7 +296,7 @@ class PostgreModel {
    * @param on {string} 
    *  - join条件
    * */
-  leftJoin (m, on) {
+  leftJoin(m, on) {
     return this.join(m, on, 'left');
   }
 
@@ -309,7 +305,7 @@ class PostgreModel {
    * @param on {string} - join条件
    *
    * */
-  rightJoin (m, on, options = {}) {
+  rightJoin(m, on, options = {}) {
     return this.join(m, on, 'right');
   }
 
@@ -321,8 +317,7 @@ class PostgreModel {
    *  - returning {string} sql语句的returning列。
    * @returns Promise
    */
-  async insert (data, options = {schema: null}) {
-
+  async insert(data, options = {schema: null}) {
     let h = this._mschema(options.schema);
 
     if (this.primaryKey && typeof this.primaryKey === 'string'
@@ -344,7 +339,7 @@ class PostgreModel {
    *  - returning {string} sql语句的returning列。
    * @returns Promise
    */
-  async insertAll (data, options = {schema: null}) {
+  async insertAll(data, options = {schema: null}) {
     if (!Array.isArray(data)) {
       return false;
     }
@@ -379,7 +374,7 @@ class PostgreModel {
    *  - returning {string} sql语句的returning列。
    * @returns Promise
    */
-  async update (cond, data, options={schema: null}) {
+  async update(cond, data, options={schema: null}) {
     let h = this._mschema(options.schema);
 
     options.returning && (h = h.returning(options.returning));
@@ -397,7 +392,7 @@ class PostgreModel {
    *  - order {string} 排序方式。
    * @returns object
    */
-  async select (cond, args = {schema: null}) {
+  async select(cond, args = {schema: null}) {
     if (!cond || typeof cond === 'string' || Array.isArray(cond)) {
       return this.model().select(cond ? cond : '*');
     }
@@ -427,7 +422,7 @@ class PostgreModel {
    *  - field {string|array} 返回的列，默认为selectField设置的值。
    * @returns object
    */
-  async get (cond = {}, options = {field: null, schema: null}) {
+  async get(cond = {}, options = {field: null, schema: null}) {
     return this._mschema(options.schema).where(cond).get(options.field || this.selectField);
   }
 
@@ -439,7 +434,7 @@ class PostgreModel {
    *  - returning {string} sql语句的returning列。
    * @returns Promise
    */
-  async delete (cond, options = {schema: null}) {
+  async delete(cond, options = {schema: null}) {
     let h = this._mschema(options.schema);
     options.returning && (h = h.returning(options.returning));
 
@@ -453,7 +448,7 @@ class PostgreModel {
    *  - schema {string} 数据库schema。
    * @returns Promise
    */
-  async count (cond = {}, options = {column:'*', schema: null}) {
+  async count(cond = {}, options = {column:'*', schema: null}) {
     if (!options) options = {};
 
     if (typeof cond === 'string') {
