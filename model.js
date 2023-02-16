@@ -265,6 +265,10 @@ class Model {
         }
 
         if ( Array.isArray(cond[k]) ) {
+          if (cond[k].length === 0) {
+            throw new Error(`${k} 传递了空数组。`);
+          }
+
           vals = [];
           for (let i = 0; i < cond[k].length; i++) {
             vals.push(this.qoute(cond[k][i]));
