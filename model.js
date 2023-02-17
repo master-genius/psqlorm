@@ -194,7 +194,7 @@ class Model {
   }
 
   alias (name) {
-    name && (this.alias = name);
+    name && (this.sqlUnit.alias = name);
     return this;
   }
 
