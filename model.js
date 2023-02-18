@@ -209,6 +209,8 @@ class Model {
   }
 
   qoute (a) {
+    if (a === undefined) throw new Error('传递了undefined值，请检查');
+
     if (typeof a === 'number') {
       return a;
     }
