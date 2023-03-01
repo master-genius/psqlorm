@@ -58,6 +58,7 @@ let pm = new TestModel(m);
           .where({id : ['qwe','123','wee12','233e'], role : 'user'})
           .where('is_test', 1)
           .where('status', 'ok')
+          .where('key', null)
           .where({
               point_time : {
                 '>' : Date.now() - 864000000,

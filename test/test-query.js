@@ -12,7 +12,8 @@ pm.schema = 'www';
   var t = '';
   let r = null;
   let count = 0;
-  for (let i=0; i<20000; i++) {
+  let total = 100000;
+  for (let i=0; i< total; i++) {
     t = pm.model('goods').fetch();
     r = await t.where('take_on=? AND (goods_type=? OR goods_type=?)', [1, 'g','p'])
                 .where({info: null})
@@ -44,6 +45,8 @@ pm.schema = 'www';
     r = await pm.model('users', 'uni').fetch()
                 .returning('id,username')
                 .where({id: 'sdf32947239v', is_delete: 0})
+                .where('pass = ? and level > ?', ['12', 3])
+                .where('key', null)
                 .update({level: 5, role: 'admin', detail: '$$18236D$$$$'});
     count++;
     //console.log(r)
