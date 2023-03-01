@@ -1,6 +1,6 @@
 {
   "name": "psqlorm",
-  "version": "8.3.8",
+  "version": "8.3.9",
   "description": "orm for postgresql",
   "main": "pqorm.js",
   "scripts": {
@@ -14,7 +14,7 @@
     "url": "https://gitee.com/daoio/psqlorm"
   },
   "dependencies" : {
-    "pg": "^8.8.0"
+    "pg": "^8.9.0"
   },
   "keywords": [
     "psqlorm",

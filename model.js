@@ -208,7 +208,7 @@ class Model {
     return this;
   }
 
-  qoute (a) {
+  quote (a) {
     if (a === undefined) throw new Error('传递了undefined值，请检查');
 
     if (typeof a === 'number') {
@@ -232,23 +232,40 @@ class Model {
     if (typeof cond === 'string') {
       let whstr = '';
       let typ = typeof args;
-      if (typ === 'number' || typ === 'string') {
-          whstr = cond + '=' + (typ==='number' ? args : this.qoute(args));
-      } else {
-          if (cond.indexOf('?') < 0) {
-            whstr = cond;
-          } else {
-            let carr = cond.split('?');
-            let condarr = [];
-            for (let i=0; i<args.length; i++) {
-              condarr.push(carr[i]);
-              condarr.push( this.qoute(args[i]) );
+
+      if (args === undefined)
+        throw new Error(`${cond} 传递了undefined值，请检查参数输入。`);
+
+      switch (typ) {
+        case 'number':
+          whstr = cond + '=' + args;
+          break;
+
+        case 'string':
+          whstr = cond + '=' + this.quote(args);
+          break;
+
+        case 'object':
+          if (Array.isArray(args)) {
+            if (cond.indexOf('?') < 0) {
+              whstr = cond;
+            } else {
+              let carr = cond.split('?');
+              let condarr = [];
+              for (let i=0; i<args.length; i++) {
+                condarr.push(carr[i]);
+                condarr.push( this.quote(args[i]) );
+              }
+              condarr.push(carr[carr.length-1]);
+              whstr = condarr.join('');
+              carr = condarr = null;
             }
-            condarr.push(carr[carr.length-1]);
-            whstr = condarr.join('');
-            carr = condarr = null;
+          } else if (args === null) {
+            whstr = cond + ' is null';
           }
+          break;
       }
+      //end switch
 
       if (this.sqlUnit.where && whstr) {
         andstr = ' and ';
@@ -273,7 +290,7 @@ class Model {
 
           vals = [];
           for (let i = 0; i < cond[k].length; i++) {
-            vals.push(this.qoute(cond[k][i]));
+            vals.push(this.quote(cond[k][i]));
           }
           tmp.push(`${k} in (${vals.join(',')})`);
           continue;
@@ -284,7 +301,7 @@ class Model {
         if (t === 'number') {
           tmp.push(`${k}=${cond[k]}`);
         } else if (t === 'string') {
-          tmp.push(`${k}=${this.qoute(cond[k])}`);
+          tmp.push(`${k}=${this.quote(cond[k])}`);
         } else if (t === 'object') {
           if (cond[k] === null) {
             tmp.push(`${k} is null`);
@@ -295,7 +312,7 @@ class Model {
               tmp.push(`${k} ${ks} null`);
               continue;
             }
-            tmp.push(`${k} ${ks} ${this.qoute(cond[k][ks])}`);
+            tmp.push(`${k} ${ks} ${this.quote(cond[k][ks])}`);
           }
         }
       }
@@ -521,7 +538,7 @@ class Model {
     this.sqlUnit.fields = `(${fields.join(',')})`;
     let vals = [];
     for (let k in data) {
-      vals.push(`${this.qoute(data[k])}`);
+      vals.push(`${this.quote(data[k])}`);
     }
     this.sqlUnit.values = `(${vals.join(',')})`;
     return this.exec();
@@ -550,7 +567,7 @@ class Model {
     for (let i=0; i < data.length; i++) {
       vals = [];
       for (let k in data[i]) {
-        vals.push(`${this.qoute(data[i][k])}`);
+        vals.push(`${this.quote(data[i][k])}`);
       }
       vallist.push(`(${vals.join(',')})`);
     }
@@ -574,7 +591,7 @@ class Model {
           continue;
         }
 
-        vals.push(`${k}=${this.qoute(data[k])}`);
+        vals.push(`${k}=${this.quote(data[k])}`);
       }
 
       this.sqlUnit.values = `${vals.join(',')}`;
