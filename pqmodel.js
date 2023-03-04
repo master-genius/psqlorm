@@ -645,7 +645,7 @@ class PostgreModel {
       pagesize = options.pagesize;
     }
 
-    if (options.field) {
+    if (options.field && options.field !== '*') {
       if (typeof options.field === 'string') {
         options.field = options.field.split(',').filter(p => {
           if (p.length > 0) return p.trim();
@@ -663,7 +663,7 @@ class PostgreModel {
         delete options.field;
       }
 
-    } else {
+    } else if (!options.field) {
       options.field = '*';
     }
 
