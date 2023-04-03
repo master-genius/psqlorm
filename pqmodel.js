@@ -822,11 +822,11 @@ class PostgreModel {
     let ret = await this.transaction(async (db, ret) => {
 
         if (createList.length > 0) {
-          options.callback && await options.callback(db, createList, {stage: 'before', command: 'insert', action: 'insert'})
+          options.callback && await options.callback(this, createList, {stage: 'before', command: 'insert', action: 'insert'})
           
           await db.insertAll(createList);
 
-          options.callback && await options.callback(db, createList, {stage: 'after', command: 'insert', action: 'insert'})
+          options.callback && await options.callback(this, createList, {stage: 'after', command: 'insert', action: 'insert'})
         }
 
         let cond = {};
@@ -837,7 +837,7 @@ class PostgreModel {
             case 'delete-insert':
               options.callback
                 &&
-              await options.callback(db, updateList, {stage: 'before', command: 'insert', action: 'delete-insert'});
+              await options.callback(this, updateList, {stage: 'before', command: 'insert', action: 'delete-insert'});
 
               if (is_primary_field) {
                 cond[uid] = idlist;
@@ -850,7 +850,7 @@ class PostgreModel {
               
               updateList.length > 0 && options.callback
                 &&
-              await options.callback(db, updateList, {stage: 'after', command: 'insert', action: 'delete-insert'});
+              await options.callback(this, updateList, {stage: 'after', command: 'insert', action: 'delete-insert'});
 
               break;
 
@@ -898,7 +898,7 @@ class PostgreModel {
 
               realUpdate.length > 0 && options.callback
                 &&
-              await options.callback(db, realUpdate, {stage: 'before', command: 'update', action: 'update'});
+              await options.callback(this, realUpdate, {stage: 'before', command: 'update', action: 'update'});
 
               if (realUpdate.length > 0 && options.update === 'update') {
                 cond = {};
@@ -917,18 +917,18 @@ class PostgreModel {
               
               realUpdate.length > 0 && options.callback
                 &&
-              await options.callback(db, realUpdate, {stage: 'after', command: 'update', action: 'update'});
+              await options.callback(this, realUpdate, {stage: 'after', command: 'update', action: 'update'});
               
               if (updInsert.length > 0) {
                 options.callback
                   &&
-                await options.callback(db, updInsert, {stage: 'before', command: 'insert', action: 'insert'});
+                await options.callback(this, updInsert, {stage: 'before', command: 'insert', action: 'insert'});
 
                 await db.insertAll(updInsert);
               
                 options.callback
                   &&
-                await options.callback(db, updInsert, {stage: 'after', command: 'insert', action: 'insert'});
+                await options.callback(this, updInsert, {stage: 'after', command: 'insert', action: 'insert'});
               }
               break;
           }
@@ -1075,7 +1075,7 @@ class PostgreModel {
    * @param force {boolean} 
    *   - 是否强制同步，默认为false，若为true则会强制把数据库改为和table结构一致。
    */
-  async sync (debug=false, force=false, dropNotExistCol = false) {
+  async sync (debug=false, force=false, dropNotExistCol=false) {
 
     if (!this.table) {
       console.error('没有table对象');
@@ -1091,7 +1091,7 @@ class PostgreModel {
       return false;
     }
 
-    console.log(`开始同步表结构(start to sync table) ${this.tableName}`)
+    debug && console.log(`开始同步表结构(start to sync table) ${this.tableName}`);
 
     if (this.table.column === undefined || typeof this.table.column !== 'object') {
       throw new Error('column属性必须为object类型');
@@ -1443,12 +1443,93 @@ class PostgreModel {
           await this.db.query(`alter table ${curTableName} drop column ${k}`);
         }
       }
+
+      await this._autoRemoveIndex(debug);
     }
 
   }
 
-  async _checkIndex (indname, debug = false) {
+  async removeIndexes(debug=false, indexes=null) {
+    if (Array.isArray(debug)) {
+      indexes = debug;
+      debug = false;
+    }
 
+    let curTableName = `${this.orm.schema}.${this.tableName}`;
+
+    if (!indexes || !Array.isArray(indexes)) {
+      indexes = [].concat(this.table.index || [], this.table.unique || []);
+    }
+
+    return this._removeIndex(curTableName, debug, indexes);
+  }
+
+  async recoverIndex(debug=false) {
+    let curTableName = `${this.orm.schema}.${this.tableName}`;
+    await this._syncIndex(curTableName, debug);
+    await this._syncUnique(curTableName, debug);
+  }
+
+  async _autoRemoveIndex(debug=false) {
+    //在pg_indexes中不能带上schema
+    let sql = `select * from pg_indexes where `
+        + `tablename='${this.tableName}' and schemaname = '${this.orm.schema}' `
+        + `and indexname != '${this.tableName}_pkey';`;
+
+    let remove_index = [];
+    let remove_unique = [];
+
+    let r = await this.db.query(sql);
+
+    if (r.rowCount === 0) return false;
+
+    let indexTable = {};
+    let now_index_list = [];
+    for (let idx of r.rows) {
+      indexTable[idx.indexname] = idx;
+      now_index_list.push(idx.indexname);
+    }
+    
+    let allIndex = {};
+    if (this.table.index && Array.isArray(this.table.index)) {
+      this.table.index.forEach(a => {
+        allIndex[`${this.tableName}_${a.replaceAll(',', '_').replaceAll(' ', '')}_idx`] = a;
+      });
+    }
+    
+    let allUnique = {};
+    if (this.table.unique && Array.isArray(this.table.unique)) {
+      this.table.unique.forEach(a => {
+        allUnique[`${this.tableName}_${a.replaceAll(',', '_').replaceAll(' ', '')}_idx`] = a;
+      });
+    }
+
+    for (let ix of now_index_list) {
+      if (!allIndex[ix] && !allUnique[ix]) {
+        debug && console.log('自动删除不需要的索引(auto remove unnecessary index):', ix);
+        await this.db.query(`drop index ${this.orm.schema}.${ix};`);
+      }
+    }
+
+    for (let k in allIndex) {
+      if (!indexTable[k]) continue;
+      if (indexTable[k].indexdef.toLowerCase().indexOf('create index') !== 0) {
+        debug && console.log('自动删除类型不一致的索引(auto remove index with inconsistent type):', k);
+        await this.db.query(`drop index ${this.orm.schema}.${k};`);
+      }
+    }
+
+    for (let k in allUnique) {
+      if (!indexTable[k]) continue;
+      if (indexTable[k].indexdef.toLowerCase().indexOf('create unique') !== 0) {
+        debug && console.log('自动删除类型不一致的索引(auto remove index with inconsistent type):', k);
+        await this.db.query(`drop index ${this.orm.schema}.${k};`);
+      }
+    }
+
+  }
+
+  async _checkIndex(indname, debug = false) {
     let indsplit = indname.split(',').filter(p => p.length > 0);
 
     let tmp = null;
@@ -1489,7 +1570,7 @@ class PostgreModel {
     return true;
   }
 
-  async _syncIndex (curTableName, debug = false) {
+  async _syncIndex(curTableName, debug = false) {
     if (this.table.index === undefined) {
       return;
     }
@@ -1557,7 +1638,7 @@ class PostgreModel {
 
   }
 
-  async _syncUnique (curTableName, debug = false) {
+  async _syncUnique(curTableName, debug = false) {
 
     if (this.table.unique === undefined) {
       return;
@@ -1601,45 +1682,41 @@ class PostgreModel {
 
   }
 
-  async _removeIndex (curTableName, debug = false) {
-    if (!this.table.removeIndex || !Array.isArray(this.table.removeIndex) ) {
+  async _removeIndex(curTableName, debug=false, indexs=null) {
+    let real_indexs = indexs || this.table.removeIndex;
+
+    if (!real_indexs || !Array.isArray(real_indexs) ) {
       return false;
     }
+    
+    debug && console.log('try to remove the unnecessary index...');
 
-    if (debug) {
-      console.log('try to remove the unnecessary index...')
-    }
+    let tind = '';
+    let sql = '';
 
-    let tind = ''
-    let sql = ''
-
-    for (let i = 0; i < this.table.removeIndex.length; i++) {
+    for (let i = 0; i < real_indexs.length; i++) {
       
       //表示没有此索引
-      if (true === await this._checkIndex(this.table.removeIndex[i])) {
+      if (true === await this._checkIndex(real_indexs[i])) {
         continue;
       }
 
-      tind = this.table.removeIndex[i];
+      tind = real_indexs[i];
       
       if (tind.trim() === '') {
         continue;
       }
 
       while (tind.indexOf(',') > 0) {
-        tind = tind.replace(',', '_');
+        tind = tind.replaceAll(',', '_').replaceAll(' ', '');
       }
 
       sql = `drop index ${curTableName}_${tind}_idx`;
       try {
-        if (debug) {
-          console.log(sql);
-        }
+        debug && console.log(sql);
         await this.db.query(sql);
       } catch (err) {
-        if (debug) {
-          console.error(err)
-        }
+        debug && console.error(err);
       }
 
     }
