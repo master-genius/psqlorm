@@ -166,11 +166,21 @@ class PostgreModel {
     if (!global.__psqlorm_relate__[n]) {
       global.__psqlorm_relate__[n] = this;
     }
+  
+    let n_lower_case = n.toLowerCase();
+    if (!global.__psqlorm_relate__[n_lower_case]) {
+      global.__psqlorm_relate__[n_lower_case] = this;
+    }
 
     if (!name) return null;
     
     if (global.__psqlorm_relate__[name]) {
       return global.__psqlorm_relate__[name];
+    }
+
+    let name_lower = name.toLowerCase();
+    if (global.__psqlorm_relate__[name_lower]) {
+      return global.__psqlorm_relate__[name_lower];
     }
 
     return null;
@@ -606,6 +616,10 @@ class PostgreModel {
     return this.orm.model().quote(a);
   }
 
+  logSql(callback) {
+    return this.orm.model().logSql(callback);
+  }
+
   order(by, type = '') {
     return this.model().order(by, type);
   }
@@ -793,7 +807,11 @@ class PostgreModel {
         idlist.push(idmap);
       }
     }
-    
+
+    if (options.callback && typeof options.callback !== 'function') {
+      options.callback = null;
+    }
+
     if (options.mode === 'strict' && (wrongs.length > 0 || notin.length > 0))
       return {
         ok: false,
@@ -802,20 +820,38 @@ class PostgreModel {
       };
 
     let ret = await this.transaction(async (db, ret) => {
-        if (createList.length > 0) await db.insertAll(createList);
+
+        if (createList.length > 0) {
+          options.callback && await options.callback(db, createList, {stage: 'before', command: 'insert', action: 'insert'})
+          
+          await db.insertAll(createList);
+
+          options.callback && await options.callback(db, createList, {stage: 'after', command: 'insert', action: 'insert'})
+        }
 
         let cond = {};
+        let updateData = {};
 
         if (idlist.length > 0) {
           switch (options.update) {
             case 'delete-insert':
+              options.callback
+                &&
+              await options.callback(db, updateList, {stage: 'before', command: 'insert', action: 'delete-insert'});
+
               if (is_primary_field) {
                 cond[uid] = idlist;
                 await db.where(cond).delete();
               } else {
                 for (let a of idlist) await db.where(a).delete();
               }
-              await db.insertAll(updateList);
+
+              updateList.length > 0 && await db.insertAll(updateList);
+              
+              updateList.length > 0 && options.callback
+                &&
+              await options.callback(db, updateList, {stage: 'after', command: 'insert', action: 'delete-insert'});
+
               break;
 
               //先检测是否存在然后确定是更新还是创建
@@ -860,20 +896,40 @@ class PostgreModel {
                 }
               }
 
+              realUpdate.length > 0 && options.callback
+                &&
+              await options.callback(db, realUpdate, {stage: 'before', command: 'update', action: 'update'});
+
               if (realUpdate.length > 0 && options.update === 'update') {
                 cond = {};
                 for (let d of realUpdate) {
                   if (is_primary_field) {
                     cond[uid] = d[uid];
-                    await db.where(cond).update(d);
+                    updateData = {...d};
+                    delete updateData[uid];
+                    Object.keys(updateData).length > 0 && await db.where(cond).update(updateData);
                   } else {
                     uid.forEach(x => {cond[x] = d[x]});
                     await db.where(cond).update(d);
                   }
                 }
               }
+              
+              realUpdate.length > 0 && options.callback
+                &&
+              await options.callback(db, realUpdate, {stage: 'after', command: 'update', action: 'update'});
+              
+              if (updInsert.length > 0) {
+                options.callback
+                  &&
+                await options.callback(db, updInsert, {stage: 'before', command: 'insert', action: 'insert'});
 
-              updInsert.length > 0 && await db.insertAll(updInsert);
+                await db.insertAll(updInsert);
+              
+                options.callback
+                  &&
+                await options.callback(db, updInsert, {stage: 'after', command: 'insert', action: 'insert'});
+              }
               break;
           }
         }

@@ -4,12 +4,8 @@
 
 const fs = require('fs')
 
-function makeModel (name) {
-
-let mstr = `'use strict'
-
-const PostgreModel = require('psqlorm').Model
-
+function makeTable(name) {
+return `'use strict';
 /**
  * @typedef {object} column
  * @property {string} type - 类型
@@ -26,7 +22,7 @@ const PostgreModel = require('psqlorm').Model
 
 //在column中编辑列字段。
 
-let _table = {
+module.exports = {
   column: {
     /**
      * @type {column}
@@ -71,6 +67,15 @@ let _table = {
     'name'
   ]
 }
+`
+}
+
+function makeModel (name, orgname) {
+
+let mstr = `'use strict'
+
+const PostgreModel = require('psqlorm').Model
+const table = require('./tables/${name.toLowerCase()}.js')
 
 class ${name} extends PostgreModel {
 
@@ -93,7 +98,9 @@ class ${name} extends PostgreModel {
     //数据表真正的名称，注意：postgresql不支持表名大写，更改名称请使用小写字母。
     this.tableName = '${name.toLowerCase()}'
 
-    this.table = _table
+    this.table = table
+
+    this.columns = Object.keys(this.table.column)
 
   }
 
@@ -201,7 +208,7 @@ try {
 }
 
 let cpath
-
+let table_dir
 for (let c of mlist) {
 
   if (!checkName(c)) {
@@ -212,6 +219,7 @@ for (let c of mlist) {
   }
 
   cpath = `${mdir}/${c}.js`
+  table_dir = `${mdir}/tables`
 
   try {
     fs.accessSync(cpath)
@@ -220,7 +228,14 @@ for (let c of mlist) {
   } catch (err) {}
 
   try {
-    fs.writeFileSync(cpath, makeModel(`${c[0].toUpperCase()}${c.substring(1)}`), {encoding: 'utf8'})
+    fs.accessSync(table_dir)
+  } catch (err) {
+    fs.mkdirSync(table_dir)
+  }
+
+  try {
+    fs.writeFileSync(cpath, makeModel(`${c[0].toUpperCase()}${c.substring(1)}`, c), {encoding: 'utf8'})
+    fs.writeFileSync(table_dir+`/${c}.js`, makeTable(c.toLowerCase()), {encoding: 'utf8'})
   } catch (err) {
     console.error(err)
   }

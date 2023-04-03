@@ -67,6 +67,7 @@ class Model {
     this.state = state;
     this.__state__ = this.state.USING;
     this.__fetch_sql__ = false;
+    this.__log_sql__ = null;
 
     this.stag = this.makeQuoteTag(5 + parseInt(Math.random() * 5));
     this.lstag = this.stag.substring(0, this.stag.length - 1);
@@ -115,6 +116,7 @@ class Model {
     //this.__trigger_before__ = false;
     this.__trigger_after__ = false;
     this.__trigger_commit__ = false;
+    this.__log_sql__ = null;
   }
 
   resetIdInfo () {
@@ -200,6 +202,14 @@ class Model {
 
   fetch() {
     this.__fetch_sql__ = true;
+    return this;
+  }
+
+  logSql(callback=null) {
+    if (callback && typeof callback === 'function') {
+      this.__log_sql__ = callback;
+    }
+
     return this;
   }
 
@@ -449,13 +459,20 @@ class Model {
     //let is_trigger_b = this.__trigger_before__;
     let is_trigger = this.__trigger_after__;
     let is_trigger_m = this.__trigger_commit__;
+    
+    if (this.__log_sql__) {
+      try {
+        this.__log_sql__(sql);
+      } catch (err) {}
+    }
 
     this.init();
-    if (this.__fetch_sql__) return sql;
 
     try {
       let ename;
 
+      if (this.__fetch_sql__) return sql;
+      
       let r = await this.db.query(sql);
 
       let rdata;
