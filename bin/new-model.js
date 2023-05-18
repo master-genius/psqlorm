@@ -4,8 +4,11 @@
 
 const fs = require('fs')
 
-function makeTable(name) {
-return `'use strict';
+function makeTable(name, separate=false) {
+  let exp = separate ? 'module.exports =' : 'let table =';
+  let ust = separate ? `'use strict'\n` : '\n';
+
+return `${ust}
 /**
  * @typedef {object} column
  * @property {string} type - 类型
@@ -20,9 +23,9 @@ return `'use strict';
  * 如果指定ref，type会保持和外键引用的字段一致。
  */
 
-//在column中编辑列字段。
+//在column中编辑列属性。
 
-module.exports = {
+${exp} {
   column: {
     /**
      * @type {column}
@@ -70,13 +73,16 @@ module.exports = {
 `
 }
 
-function makeModel (name, orgname) {
+function makeModel (name, orgname, separate=false) {
+
+  let imp_table = `const table = require('./tables/${orgname}.js')\n`
+
+  let tableCode = separate ? imp_table : makeTable(name, separate)
 
 let mstr = `'use strict'
 
 const PostgreModel = require('psqlorm').Model
-const table = require('./tables/${name.toLowerCase()}.js')
-
+${tableCode}
 class ${name} extends PostgreModel {
 
   constructor (pqorm) {
@@ -185,6 +191,8 @@ let mdir = 'model'
 
 let mlist = []
 
+let separate = false
+
 for (let i = 2; i < process.argv.length; i++) {
   if (process.argv[i].indexOf('--mdir=') === 0) {
 
@@ -194,6 +202,11 @@ for (let i = 2; i < process.argv.length; i++) {
       mdir = t
     }
 
+    continue
+  }
+
+  if (['-s', '--separate'].indexOf(process.argv[i]) >= 0) {
+    separate = true
     continue
   }
 
@@ -234,8 +247,8 @@ for (let c of mlist) {
   }
 
   try {
-    fs.writeFileSync(cpath, makeModel(`${c[0].toUpperCase()}${c.substring(1)}`, c), {encoding: 'utf8'})
-    fs.writeFileSync(table_dir+`/${c}.js`, makeTable(c.toLowerCase()), {encoding: 'utf8'})
+    fs.writeFileSync(cpath, makeModel(`${c[0].toUpperCase()}${c.substring(1)}`, c, separate), {encoding: 'utf8'})
+    separate && fs.writeFileSync(table_dir+`/${c}.js`, makeTable(c.toLowerCase(), separate), {encoding: 'utf8'})
   } catch (err) {
     console.error(err)
   }
