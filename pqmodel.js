@@ -11,6 +11,26 @@ let forbidColumnName = [
 class PostgreModel {
 
   constructor (pqorm = null, init = true) {
+    if (!pqorm) {
+      pqorm = global.__pqorm__ || global.__pg__ || global.__pqorm || null
+      if (!pqorm && process.env.PG_HOST && process.env.PG_DATABASE && process.env.PG_USER) {
+        let dbconfig = {
+          host: process.env.PG_HOST,
+          database: process.env.PG_DATABASE,
+          user: process.env.PG_USER,
+          port: process.env.PG_PORT || 5432,
+          max: process.env.PG_MAX || 25,
+          password: process.env.PG_PASSWORD || '',
+          idleTimeoutMillis: process.env.PG_IDLE_TIMEOUT || 3600_000,
+          connectionTimeoutMillis: process.env.PG_CONNECTION_TIMEOUT || 60000,
+        }
+
+        let initORM = require('./pqorm.js').initORM
+        pqorm = initORM(dbconfig, process.env.PG_SCHEMA || 'public')
+        global.__pqorm__ = pqorm
+      }
+    }
+
     if (pqorm) {
       this.orm = pqorm;
       this.db = pqorm.db;
@@ -31,7 +51,7 @@ class PostgreModel {
 
     this.idPre = '';
 
-    this.idLen = 12;
+    this.idLen = 16;
 
     this.pagesize = 60;
 
@@ -96,7 +116,7 @@ class PostgreModel {
       configurable: false,
       writable: true
     });
-
+    
     this.makeId = makeId;
 
     this.pools = [];

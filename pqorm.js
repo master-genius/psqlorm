@@ -1,7 +1,6 @@
 'use strict';
 
 const mo = require ('./model.js');
-const pqmodel = require('./pqmodel');
 const pg = require('pg');
 const TableTrigger = require('./tableTrigger.js');
 
@@ -117,7 +116,5 @@ pqorm.initORM = (config, schema = null) => {
   if (schema) orm.schema = schema;
   return orm;
 };
-
-pqorm.Model = pqmodel;
 
 module.exports = pqorm;

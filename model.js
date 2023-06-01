@@ -53,12 +53,7 @@ class Model {
       writable: false
     });
 
-    Object.defineProperty(this, 'makeId', {
-      value: makeId,
-      enumerable: true,
-      configurable: false,
-      writable: false
-    });
+    this.makeId = makeId;
 
     this.tableTrigger = trigger;
 
@@ -547,7 +542,7 @@ class Model {
       && this.__primary_key__ && typeof this.__primary_key__ === 'string' 
       && data[this.__primary_key__] === undefined)
     {
-      data[this.__primary_key__] = makeId(this.__id_len__, this.__id_pre__);
+      data[this.__primary_key__] = this.makeId(this.__id_len__, this.__id_pre__);
     }
 
     let fields = Object.keys(data);
@@ -569,7 +564,7 @@ class Model {
     if (this.__auto_id__ && this.__primary_key__ && typeof this.__primary_key__ === 'string') {
       for (let i = 0; i < data.length; i++) {
         if (data[i][this.__primary_key__] === undefined)
-          data[i][this.__primary_key__] = makeId(this.__id_len__, this.__id_pre__);
+          data[i][this.__primary_key__] = this.makeId(this.__id_len__, this.__id_pre__);
       }
     }
 
