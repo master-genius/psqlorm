@@ -1,21 +1,32 @@
 'use strict'
 
-const longId = require('../makeId').longId
+const longId = require('../makeId').serialId
+const longId2 = require('../makeId').serialId
+const longId3 = require('../makeId').serialId
 
 let tid = {}
 let id
+let id2
 let count = 0
+
+function check(id) {
+  if (tid[id]) {
+    console.log(id, ++count)
+    return true
+  }
+
+  tid[id] = true
+  return false
+}
 
 console.time('longid')
 
 for (let i = 0; i < 1000000; i++) {
   id = longId()
-  if (tid[id]) {
-    console.log(id, ++count)
-    continue
-  }
-
-  tid[id] = true
+  id2 = longId2()
+  check(id)
+  check(id2)
+  check(longId3())
 }
 
 console.timeEnd('longid')
