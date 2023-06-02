@@ -51,7 +51,7 @@ class PostgreModel {
 
     this.idPre = '';
 
-    this.idLen = 16;
+    this.idLen = 15;
 
     this.pagesize = 60;
 
@@ -117,7 +117,8 @@ class PostgreModel {
       writable: true
     });
     
-    this.makeId = makeId;
+    this.orgMakeId = makeId;
+    this.makeId = makeId.serialId;
 
     this.pools = [];
     this.maxPool = 150;

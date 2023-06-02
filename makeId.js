@@ -9,18 +9,56 @@ if (t.getFullYear() > 2050) {
   start_time = t.setFullYear(2045, 1, 25)
 }
 
+let loopch = [
+  "0","1","2","3","4","5","6","7","8","9",
+  "a","b","c","d","e","f","g","h","i","j",
+  "k","l","m","n","o","p","q","r","s","t",
+  "u","v","w","x","y","z"
+]
+
+let loopLength = loopch.length
+
+class Clocks {
+  constructor() {
+    this.charClocks = {
+      y: 0,
+      m: 0,
+      d: 0
+    }
+  }
+
+  rand() {
+    this.charClocks.y = parseInt(loopLength * Math.random())
+    this.charClocks.m = parseInt(loopLength * Math.random())
+    this.charClocks.d = parseInt(loopLength * Math.random())
+  }
+
+  getCharTime() {
+    let str = loopch[this.charClocks.y] + loopch[this.charClocks.m] + loopch[this.charClocks.d]
+    
+    this.charClocks.d++
+    if (this.charClocks.d >= loopLength) {
+      this.charClocks.d = 0
+      this.charClocks.m++
+      if (this.charClocks.m >= loopLength) {
+        this.charClocks.m = 0
+        this.charClocks.y++
+        if (this.charClocks.y >= loopLength) {
+          this.charClocks.y = 0
+        }
+      }
+    }
+
+    return str
+  }
+
+}
+
 function longId(idLen=16, idPre = '') {
   let pstr = (Date.now() - start_time).toString(16)
   let leng = pstr.length
   if (idLen < 16) idLen = 16
   return idPre + pstr + randstring(idLen - leng)
-}
-
-function mlongId(mid='', idLen=16, idPre = '') {
-  let pstr = (Date.now() - start_time).toString(16)
-  let leng = pstr.length
-  if (idLen < 16) idLen = 16
-  return idPre + pstr + '-' + mid + randstring(idLen - leng)
 }
 
 function makeId (idLen = 12, idPre = '') {
@@ -47,35 +85,23 @@ function makeId (idLen = 12, idPre = '') {
 
 
 makeId.longId = longId
-makeId.mlongId = mlongId
 
-/*
 Object.defineProperty(makeId, 'serialId', {
   enumerable: false,
   configurable: false,
   get: function () {
-    let _next = 0
-    let n = 0
+    let _next = new Clocks()
+    _next.rand()
 
-    return function serialId() {
-      _next++
-      if (_next > 999) _next = 0
+    return function sid (idLen=15, idPre='') {
+      let pstr = (Date.now() - start_time).toString(16)
+      let leng = pstr.length
+      if (idLen < 14) idLen = 14
 
-      let tm = Date.now() - start_time
-      
-      if (n > 8) n = 0
-      n++
-
-      return tm * 10000000 + _next * 10000 
-          + n * 1000
-          + (parseInt(Math.random() * 9) + 1) * 100
-          + (parseInt(Math.random() * 9) + 1) * 10
-          + parseInt(Math.random() * 10)
-      
+      return idPre + pstr + _next.getCharTime() + randstring(idLen - leng - 3)
     }
   }
 })
-*/
 
 module.exports = makeId;
 
