@@ -16,35 +16,76 @@ let loopch = [
   "u","v","w","x","y","z"
 ]
 
+let sloopch = loopch.concat([
+  'A', 'B', 'C', 'D', 'E', 'F', 'G',
+  'H', 'I', 'J', 'K', 'L', 'M', 'N',
+  'O', 'P', 'Q', 'R', 'S', 'T', 'U',
+  'V', 'W', 'X', 'Y', 'Z', '_'
+])
+
+//不要在意一点点内存，用空间换时间
+let msloopch = []
+for (let x of loopch) {
+  for (let y of loopch) {
+    msloopch.push(x+y)
+  }
+}
+
+msloopch = msloopch.slice(parseInt(Math.random() * 100))
+
 let loopLength = loopch.length
+let sloopLength = sloopch.length
 
 class Clocks {
   constructor() {
-    this.charClocks = {
+    this.clocks = {
       y: 0,
       m: 0,
       d: 0
     }
+
+    this.startYear = 2023
   }
 
   rand() {
-    this.charClocks.y = parseInt(loopLength * Math.random())
-    this.charClocks.m = parseInt(loopLength * Math.random())
-    this.charClocks.d = parseInt(loopLength * Math.random())
+    for (let k in this.clocks) {
+      this.clocks[k] = parseInt(loopLength * Math.random())
+    }
+  }
+
+  getFullTime() {
+    return this.getTime() + this.getCharTime()
+  }
+
+  getTime() {
+    let t = new Date()
+    let year = t.getFullYear()
+    let month = t.getMonth()
+    let dat = t.getDate()
+    let hour = t.getHours()
+    let minute = t.getMinutes()
+    let seconds = t.getSeconds()
+    let ms = t.getMilliseconds()
+    
+    let yind = year - this.startYear
+
+    if (yind < 1 || yind > sloopLength) yind = 1
+
+    return sloopch[yind] + loopch[month] + loopch[dat] + loopch[hour] + sloopch[minute] + sloopch[seconds] + msloopch[ms]
   }
 
   getCharTime() {
-    let str = loopch[this.charClocks.y] + loopch[this.charClocks.m] + loopch[this.charClocks.d]
+    let str = loopch[this.clocks.y] + loopch[this.clocks.m] + loopch[this.clocks.d]
     
-    this.charClocks.d++
-    if (this.charClocks.d >= loopLength) {
-      this.charClocks.d = 0
-      this.charClocks.m++
-      if (this.charClocks.m >= loopLength) {
-        this.charClocks.m = 0
-        this.charClocks.y++
-        if (this.charClocks.y >= loopLength) {
-          this.charClocks.y = 0
+    this.clocks.d++
+    if (this.clocks.d >= loopLength) {
+      this.clocks.d = 0
+      this.clocks.m++
+      if (this.clocks.m >= loopLength) {
+        this.clocks.m = 0
+        this.clocks.y++
+        if (this.clocks.y >= loopLength) {
+          this.clocks.y = 0
         }
       }
     }
@@ -93,12 +134,10 @@ Object.defineProperty(makeId, 'serialId', {
     let _next = new Clocks()
     _next.rand()
 
-    return function sid (idLen=15, idPre='') {
-      let pstr = (Date.now() - start_time).toString(16)
-      let leng = pstr.length
-      if (idLen < 14) idLen = 14
+    return function sid (idLen=13, idPre='') {
+      if (idLen < 12) return makeId(idLen, idPre)
 
-      return idPre + pstr + _next.getCharTime() + randstring(idLen - leng - 3)
+      return idPre + _next.getFullTime() + randstring(idLen - 11)
     }
   }
 })

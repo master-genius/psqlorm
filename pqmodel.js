@@ -51,9 +51,9 @@ class PostgreModel {
 
     this.idPre = '';
 
-    this.idLen = 15;
+    this.idLen = 13;
 
-    this.pagesize = 60;
+    this.pagesize = 100;
 
     this.dataTypeMap = {
       'varchar':    'character varying',

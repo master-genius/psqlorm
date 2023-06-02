@@ -83,7 +83,7 @@ class Model {
       selectFor: ''
     };
     
-    this.__id_len__ = 15;
+    this.__id_len__ = 13;
     this.__id_pre__ = '';
     this.__auto_id__ = false;
     this.__primary_key__ = 'id';
