@@ -95,8 +95,8 @@ class ${name} extends PostgreModel {
     //主键id前缀，建议不要超过2字符，请确保前缀和idLen的长度 <= 数据库字段的最大长度。
     this.idPre = ''
 
-    //id的长度，默认为15，建议id长度不要低于14。
-    //this.idLen = 15
+    //id的长度，默认为13，建议id长度不要低于13。
+    //this.idLen = 13
 
     //默认主键名为id，并且是字符串类型，主键id会自动生成。
     //this.primaryKey = 'id'

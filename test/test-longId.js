@@ -3,6 +3,7 @@
 const longId = require('../makeId').serialId
 const longId2 = require('../makeId').serialId
 const longId3 = require('../makeId').serialId
+const longId4 = require('../makeId').serialId
 
 let tid = {}
 let id
@@ -27,6 +28,7 @@ for (let i = 0; i < 1000000; i++) {
   check(id)
   check(id2)
   check(longId3())
+  check(longId4())
 }
 
 console.timeEnd('longid')
