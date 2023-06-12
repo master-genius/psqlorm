@@ -187,6 +187,8 @@ function checkName (name) {
   return name_preg.test(name)
 }
 
+
+let mdir = 'model'
 let mlist = []
 
 let separate = false
