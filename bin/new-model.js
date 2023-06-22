@@ -31,7 +31,7 @@ ${exp} {
      * @type {column}
      * */
     id: {
-      type : 'varchar(18)'
+      type : 'varchar(13)'
     },
 
     /**
