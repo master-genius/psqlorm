@@ -3,6 +3,7 @@
 const mo = require ('./model.js');
 const pg = require('pg');
 const TableTrigger = require('./tableTrigger.js');
+const types = require('./dataTypes.js')
 
 let pqorm = function (db) {
 
@@ -116,5 +117,7 @@ pqorm.initORM = (config, schema = null) => {
   if (schema) orm.schema = schema;
   return orm;
 };
+
+pqorm.dataTypes = types;
 
 module.exports = pqorm;

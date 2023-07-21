@@ -24,21 +24,38 @@ return `${ust}
  */
 
 //在column中编辑列属性。
+/**
+ * dataTypes对常用的类型提供了一个中间层：
+ *  它的主要目的不是为了提供方便，
+ *  而是提供一个统一的格式并尽可能防止出错。
+ *  尽可能避免大小写不一致、前后有空格等问题。
+ *  STRING() CHAR() NUMBER() ARRAY() 是函数类型，其他如TEXT、INT、BIGINT等是普通属性值。
+ */
+
+const dataTypes = require('psqlorm').dataTypes
 
 ${exp} {
   column: {
     /**
      * @type {column}
+     * id默认是主键，不需要再加入到unique索引。
      * */
     id: {
-      type : 'varchar(13)'
+      type : dataTypes.ID
     },
 
     /**
      * @type {column}
      * */
     name: {
+      //可以直接写字符串用于声明数据库字段的类型
       type : 'varchar(30)',
+      default: ''
+    },
+
+    detail: {
+      //相当于 'varchar(200)'
+      type: dataTypes.STRING(200),
       default: ''
     },
 
@@ -46,7 +63,7 @@ ${exp} {
      * @type {column}
      * */
     create_time: {
-      type : 'bigint',
+      type : dataTypes.BIGINT,
       default: 0
     },
     
@@ -54,7 +71,7 @@ ${exp} {
      * @type {column}
      * */
     update_time: {
-      type : 'bigint',
+      type : dataTypes.BIGINT,
       default: 0
     },
   },
