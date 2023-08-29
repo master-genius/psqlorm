@@ -885,3 +885,37 @@ class dataTest extends PostgreModel {
 module.exports = dataTest;
 
 ```
+
+----
+
+# 内部设计、注意事项、高级用法
+
+----
+
+## 内部设计
+
+PostgreModel是实现各种表同步、数据导入、导出备份以及常用sql处理的高级封装。其内部会调用Model，Model是对postgres的基础封装。
+
+**主要区别：**
+
+- Model部分实现了常用的sql操作，并最终生成sql并执行，支持事务处理。但是除此之外不记录任何东西。就是一个可以方便处理sql的执行器。
+
+- PostgreModel实现了数据表的同步，数据的导入和导出等复杂处理。开发者编写的每个模型类都继承自PostgreModel，每个模型类都具备table属性表示一个数据库的表结构，主键ID是什么等。
+
+**二者关系**
+
+PostgreModel内部会调用Model的实例去完成操作，PostgreModel实现了Model实例的同样的接口封装，因此，二者可以平滑的过度，使用上也非常方便。
+
+**连接池**
+
+Model部分进行了连接池处理，pqorm.model内部使用了对象池，不会频繁的创建model。
+
+每一个Model实例是一次sql执行，或者是进行事务操作，可以执行多次sql。
+
+**和其他ORM的区别**
+
+PostgreModel的实例不必多次初始化，它每次都使用model实例执行操作，这种设计有以下几个因素：
+
+- 历史原因，最开始没有PostgreModel，只是一个轻量级的ORM：Model。
+
+- 通常的ORM都会把一个数据对应的对象作为一个ORM实例返回，具备方法，但是返回查询列表，就只是对象，因为性能原因。此处更改了设计模式。
