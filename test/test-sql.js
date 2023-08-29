@@ -27,6 +27,15 @@ let pm = new TestModel(m);
 
 ;(async () => {
 
+  //测试从处于释放状态的模型上继续执行新的sql。
+  let om = m.model('users').fetch()
+                  .where('age > ? and role = ?', [30, 'user']);
+
+  console.log('run and get a free model...')
+  console.log(await om.select())
+  console.log(await om.fetch().where('role != user').select())
+  
+
   let r = await m.model('users')
             .fetch()
             .where('age > ? AND role ILIKE ?', [29, '%user%'])
