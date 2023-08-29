@@ -33,8 +33,7 @@ let pm = new TestModel(m);
 
   console.log('run and get a free model...')
   console.log(await om.select())
-  console.log(await om.fetch().where('role != user').select())
-  
+  console.log(await om.table('users').fetch().where('role != ?',['user']).select())
 
   let r = await m.model('users')
             .fetch()
