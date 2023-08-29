@@ -3,6 +3,14 @@
 const randstring = require('./randstring.js');
 const makeId = require('./makeId.js');
 
+let modelErrorText = '\n\x1b[2;31;47mWarning: model执行后会自动释放模型，'
+    + '若需要重复使用，请调用connect()持有当前model实例，并在执行完毕后调用free()释放。\n'
+    + '你可能使用了中间变量保存模型实例并多次运行。Model.prototype.connect()可以让您持有此模型实例。'
+    + 'Model.prototype.free()用于将模型实例释放到连接池。\x1b[0m\n\n'
+    + '\x1b[1;35m程序仍然可以继续执行，因为使用了copy方法复制自身创建了新的model，'
+    + '请尽可能修改代码保证更好的性能以及稳定运行！！\n'
+    + '如果有必要，请在初始化数据连接后调用psqlorm.prototype.ignoreCopyWarning()方法忽略警告！！\x1b[0m\n';
+    
 let saltArr = [
   'o', 'u', 'v', 'x', 'w', 'z', 
   '_', '_', '_', 'x', 'x', 'o',
@@ -94,7 +102,44 @@ class Model {
     this.commitTriggers = [];
   }
 
-  init () {
+  //此方法的主要目的是如果检测到使用已经释放的model执行sql，则自动copy一个新的model去执行。
+  //需要注意的是：自动复制以后，需要执行init防止再次引用现在的model因为旧有的数据导致错误。
+  copy(autoInit=false) {
+    let m = new this.constructor(this.odb, this.tableName, this.__schema__, this.parent, this.tableTrigger);
+ 
+    //如果是事务操作，则新的model也是事务操作。
+    m.db = this.db;
+    m.__schema__ = this.__schema__;
+    m._schema = this._schema;
+    //复制以后也要init现在的model。
+    for (let k in this.sqlUnit) m.sqlUnit[k] = this.sqlUnit[k];
+
+    m.__id_len__ = this.__id_len__;
+    m.__id_pre__ = this.__id_pre__;
+    m.__auto_id__ = this.__auto_id__;
+    m.__primary_key__ = this.__primary_key__;
+    m.__transaction__ = this.__transaction__;
+    m.__trigger_commit__ = this.__trigger_commit__;
+    m.__trigger_after__ = this.__trigger_after__;
+    //m.__free_lock__ = this.__free_lock__;
+    /**
+     * 复制的新模型处于锁定状态，执行sql以后不会自动释放到连接池，开发者可以继续执行新的sql。
+     * 如果是false，则执行后会自动释放回连接池，此时如果开发者不了解内部设计，再次重复使用。
+     * 会导致再次创建新的model，如此频繁的操作会影响性能。
+     * 另一个原因是，避免放回连接池后，被其他引用导致无法预知的错误。
+     * */
+    m.__free_lock__ = true;
+
+    m.commitTriggers = this.commitTriggers;
+    m.__log_sql__ = this.__log_sql__;
+    m.__fetch_sql__ = this.__fetch_sql__;
+    
+    autoInit && this.init();
+
+    return m;
+  }
+
+  init() {
     this.sqlUnit.command = 0;
     this.sqlUnit.values = '';
     this.sqlUnit.table = '';
@@ -114,18 +159,18 @@ class Model {
     this.__log_sql__ = null;
   }
 
-  resetIdInfo () {
+  resetIdInfo() {
     this.__auto_id__ = false;
     this.__primary_key__ = 'id';
     this.__id_len__ = 12;
     this.__id_pre__ = '';
   }
 
-  makeQuoteTag (len = 5) {
+  makeQuoteTag(len = 5) {
     return '$_' + randstring(len, saltArr) + '_$';
   }
 
-  trigger (on = true) {
+  trigger(on = true) {
     if (this.__transaction__) {
       this.__trigger_commit__ = on;
     } else {
@@ -134,46 +179,46 @@ class Model {
     return this;
   }
 
-  triggerCommit (on = true) {
+  triggerCommit(on = true) {
     this.__trigger_commit__ = on;
     return this;
   }
 
-  getSchema () {
+  getSchema() {
     return this.__schema__;
   }
 
-  schema (name) {
+  schema(name) {
     this.__schema__ = name;
     return this;
   }
 
-  autoId (b = true) {
+  autoId(b=true) {
     this.__auto_id__ = b;
     return this;
   }
 
-  setIdLen (ilen) {
+  setIdLen(ilen) {
     if (typeof ilen === 'number' && ilen > 6) this.__id_len__ = ilen;
     return this;
   }
 
-  setIdPre (pre = '') {
+  setIdPre(pre='') {
     this.__id_pre__ = pre;
     return this;
   }
 
-  returningPrimary () {
+  returningPrimary() {
     if (this.__primary_key__) this.returning(th.__primary_key__);
     return this;
   }
 
-  primaryKey (k) {
+  primaryKey(k) {
     this.__primary_key__ = k;
     return this;
   }
 
-  table (tableName = '', schema = null) {
+  table(tableName='', schema=null) {
     if (typeof tableName === 'string' && tableName.length > 0) {
       this.tableName = tableName;
     }
@@ -185,12 +230,12 @@ class Model {
     return this;
   }
 
-  resetSchema () {
+  resetSchema() {
     this.__schema__ = this._schema;
     return this;
   }
 
-  alias (name) {
+  alias(name) {
     name && (this.sqlUnit.alias = name);
     return this;
   }
@@ -213,7 +258,7 @@ class Model {
     return this;
   }
 
-  quote (a) {
+  quote(a) {
     if (a === undefined) throw new Error('传递了undefined值，请检查');
 
     if (typeof a === 'number') {
@@ -232,7 +277,7 @@ class Model {
    * @param {string | object} cond 条件，如果是字符串，args表示字符串中?要替换的参数
    * @param {array} args 
    */  
-  where (cond, args = []) {
+  where(cond, args=[]) {
     let andstr = '';
     if (typeof cond === 'string') {
       let whstr = '';
@@ -333,7 +378,7 @@ class Model {
     return this;
   }
 
-  forUpdate (k = '') {
+  forUpdate(k='') {
     if (!k) {
       this.sqlUnit.selectFor = ' for update';
     } else {
@@ -342,7 +387,7 @@ class Model {
     return this;
   }
 
-  forShare (k = '') {
+  forShare(k='') {
     if (!k) {
       this.sqlUnit.selectFor = ' for share';
     } else {
@@ -351,12 +396,12 @@ class Model {
     return this;
   }
 
-  join (table, on, join_type = 'inner') {
+  join(table, on, join_type = 'inner') {
     this.sqlUnit.join += `${join_type} join ${this.__schema__}.${table} on ${on} `;
     return this;
   }
 
-  leftJoin (table, on) {
+  leftJoin(table, on) {
     return this.join(table, on, 'left');
   }
 
@@ -364,12 +409,12 @@ class Model {
     return this.join(table, on, 'right');
   }
 
-  group (grpstr) {
+  group(grpstr) {
     this.sqlUnit.group = `group by ${grpstr} `;
     return this;
   }
 
-  order (ostr, otype = '') {
+  order(ostr, otype = '') {
     if (this.sqlUnit.order) {
       this.sqlUnit.order += `,${ostr} ${otype} `;
     } else {
@@ -379,7 +424,7 @@ class Model {
     return this;
   }
 
-  limit (count, offset = 0) {
+  limit(count, offset = 0) {
     if (count <= 0) {
       this.sqlUnit.limit = `offset ${offset}`;
     } else {
@@ -389,7 +434,7 @@ class Model {
     return this;
   }
 
-  returning (cols) {
+  returning(cols) {
     let retstr;
 
     if (Array.isArray(cols))
@@ -439,14 +484,15 @@ class Model {
     return sql;
   }
 
-  async exec () {
+  async exec() {
     if (this.__state__ === this.state.FREE) {
-      console.error('\n\x1b[2;31;47msql执行后会自动释放模型，若需要重复使用，请调用connect()持有当前Model实例，并在执行完毕后调用free()释放。\n您可能是使用了中间变量保存模型实例并多次运行。Model.prototype.connect()可以让您持有此模型实例。Model.prototype.free()用于将模型实例释放到连接池。\x1b[0m\n');
-      throw new Error(`Model实例处于释放状态，重复使用可能会导致冲突。提示：connect()用于持有此模型实例，free()用于释放模型实例。\n`);
+      !process.env.PSQLORM_IGNORE_COPY_WARNING && console.error(modelErrorText);
+      return this.copy(true).exec();
+      //throw new Error(`Model实例处于释放状态，重复使用可能会导致冲突。提示：connect()用于持有此模型实例，free()用于释放模型实例。\n`);
     }
 
     if (!this.tableName) {
-      throw new Error('您运行的是初始状态的Model，未指定table，请通过方法table(name)设定table名称再次执行。');
+      throw new Error('你运行的是初始状态的Model，未指定table，请通过方法table(name)设定table名称再次执行。');
     }
 
     let sql = this.psql();
@@ -517,11 +563,11 @@ class Model {
     }
   }
 
-  async get (fields = '*') {
+  async get(fields = '*') {
     return this.select(fields, true);
   }
 
-  async select (fields = '*', first = false) {
+  async select(fields = '*', first = false) {
     this.sqlUnit.command = first ? commandTable.GET : commandTable.SELECT;
     if ( Array.isArray(fields) ) {
       this.sqlUnit.fields = fields.join(',');
@@ -532,12 +578,12 @@ class Model {
     return this.exec();
   }
 
-  async delete () {
+  async delete() {
     this.sqlUnit.command = commandTable.DELETE;
     return this.exec();
   }
 
-  async insert (data) {
+  async insert(data) {
     if (this.__auto_id__ 
       && this.__primary_key__ && typeof this.__primary_key__ === 'string' 
       && data[this.__primary_key__] === undefined)
@@ -556,7 +602,7 @@ class Model {
     return this.exec();
   }
 
-  async insertAll (data) {
+  async insertAll(data) {
     if (!Array.isArray(data) || data.length == 0) {
       throw new Error('data must be array and length > 0');
     }
@@ -589,7 +635,7 @@ class Model {
     return this.exec();
   }
 
-  async update (data) {
+  async update(data) {
     this.sqlUnit.command = commandTable.UPDATE;
     if (typeof data === 'string') {
       this.sqlUnit.values = data;
@@ -611,12 +657,12 @@ class Model {
     return this.exec();
   }
 
-  async count (count_column = '*') {
+  async count(count_column = '*') {
     let r = await this.get(`count(${count_column}) as total`);
     return parseInt(r.total);
   }
 
-  toValue (val, type, prec = 0) {
+  toValue(val, type, prec = 0) {
     switch (type) {
       case 'int':
         return parseInt(val);
@@ -633,32 +679,33 @@ class Model {
     return val;
   }
 
-  async avg (field, to = '', prec = 1) {
+  async avg(field, to = '', prec = 1) {
     let r = await this.get(`avg(${field}) as average`);
     if (to) return this.toValue(r.average, to, prec);
 
     return r.average;
   }
 
-  async max (field, to = '', prec = 1) {
+  async max(field, to = '', prec = 1) {
     let r = await this.get(`max(${field}) as m`);
     if (to) return this.toValue(r.m, to, prec);
     return r.m;
   }
 
-  async min (field, to = '', prec = 1) {
+  async min(field, to = '', prec = 1) {
     let r = await this.get(`min(${field}) as m`);
     if (to) return this.toValue(r.m, to, prec);
     return r.m;
   }
 
-  async sum (field, to = '', prec = 1) {
+  async sum(field, to = '', prec = 1) {
     let r = await this.get(`sum(${field}) as sum_value`);
     if (to) return this.toValue(r.sum_value, to, prec);
     return r.sum_value;
   }
 
-  free () {
+  free() {
+    this.init();
     this.parent.free(this);
   }
 
@@ -666,7 +713,7 @@ class Model {
    * 锁定模型，不释放。
    * @returns {this}
    */
-  connect () {
+  connect() {
     if (this.__state__ === this.state.FREE) {
       let m = new this.constructor(this.odb,
                               this.tableName,
@@ -687,7 +734,7 @@ class Model {
    * @param {object} db 数据库连接的pg.Client客户端实例
    * @returns {this}
    */
-  bind (db) {
+  bind(db) {
     if (db.constructor.name === 'Model' || (db.db && db.db.constructor.name === 'BoundPool') || (db instanceof Model))
     {
       this.db = db.db;
@@ -701,7 +748,7 @@ class Model {
     return this;
   }
 
-  async transaction (callback) {
+  async transaction(callback) {
     if (typeof callback !== 'function' || callback.constructor.name !== 'AsyncFunction') {
       throw new Error('callback must be async function');
     }

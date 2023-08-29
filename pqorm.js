@@ -50,6 +50,7 @@ let pqorm = function (db) {
         mdb.commitTriggers = [];
         mdb.__state__ = mdb.state.FREE;
         mdb.__transaction__ = false;
+        mdb.tableName = '';
         self.pool.push(mdb);
       }
     }
@@ -74,6 +75,10 @@ let pqorm = function (db) {
 
   this.tableTrigger = new TableTrigger();
 
+};
+
+pqorm.prototype.ignoreCopyWarning = function (igr=true) {
+  process.env.PSQLORM_IGNORE_COPY_WARNING = igr;
 };
 
 pqorm.prototype.setSchema = function (name) {
