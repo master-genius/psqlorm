@@ -8,11 +8,15 @@ let forbidColumnName = [
   'like', 'ilike'
 ];
 
+//兼容realGlobal.his的改变
+let realGlobal = global
+if (realGlobal.his) realGlobal = realGlobal.his
+
 class PostgreModel {
 
   constructor (pqorm = null, init = true) {
     if (!pqorm) {
-      pqorm = global.__pqorm__ || global.__pg__ || global.__pqorm || null
+      pqorm = realGlobal.__pqorm__ || realGlobal.__pg__ || realGlobal.__pqorm || null
       if (!pqorm && process.env.PG_HOST && process.env.PG_DATABASE && process.env.PG_USER) {
         let dbconfig = {
           host: process.env.PG_HOST,
@@ -27,7 +31,7 @@ class PostgreModel {
 
         let initORM = require('./pqorm.js').initORM
         pqorm = initORM(dbconfig, process.env.PG_SCHEMA || 'public')
-        global.__pqorm__ = pqorm
+        realGlobal.__pqorm__ = pqorm
       }
     }
 
@@ -125,7 +129,7 @@ class PostgreModel {
     this.__bind_model__ = null;
 
     if (init) {
-      if (!global.__psqlorm_relate__) global.__psqlorm_relate__ = {};
+      if (!realGlobal.__psqlorm_relate__) realGlobal.__psqlorm_relate__ = {};
 
       process.nextTick(async () => {
         try {
@@ -179,29 +183,29 @@ class PostgreModel {
    * 关联一个模型并返回，要求m必须是已经初始化好的。
    * 名称是必须要有的，后续会通过名称查询缓存。
    * 路径可以不传，此时如果name没有查询到，会返回null。
-   * 在能够找到更好方式之前，暂时使用global.__psqlorm_relate__来记录进而避免循环关联。
+   * 在能够找到更好方式之前，暂时使用realGlobal.__psqlorm_relate__来记录进而避免循环关联。
    */
   relate (name = '') {
     let n = this.relateName || this.constructor.name || this.tableName;
 
-    if (!global.__psqlorm_relate__[n]) {
-      global.__psqlorm_relate__[n] = this;
+    if (!realGlobal.__psqlorm_relate__[n]) {
+      realGlobal.__psqlorm_relate__[n] = this;
     }
   
     let n_lower_case = n.toLowerCase();
-    if (!global.__psqlorm_relate__[n_lower_case]) {
-      global.__psqlorm_relate__[n_lower_case] = this;
+    if (!realGlobal.__psqlorm_relate__[n_lower_case]) {
+      realGlobal.__psqlorm_relate__[n_lower_case] = this;
     }
 
     if (!name) return null;
     
-    if (global.__psqlorm_relate__[name]) {
-      return global.__psqlorm_relate__[name];
+    if (realGlobal.__psqlorm_relate__[name]) {
+      return realGlobal.__psqlorm_relate__[name];
     }
 
     let name_lower = name.toLowerCase();
-    if (global.__psqlorm_relate__[name_lower]) {
-      return global.__psqlorm_relate__[name_lower];
+    if (realGlobal.__psqlorm_relate__[name_lower]) {
+      return realGlobal.__psqlorm_relate__[name_lower];
     }
 
     return null;
