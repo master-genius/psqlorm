@@ -302,10 +302,12 @@ class Model {
             } else {
               let carr = cond.split('?');
               let condarr = [];
-              for (let i=0; i<args.length; i++) {
+
+              for (let i=0; i < args.length; i++) {
                 condarr.push(carr[i]);
                 condarr.push( this.quote(args[i]) );
               }
+
               condarr.push(carr[carr.length-1]);
               whstr = condarr.join('');
               carr = condarr = null;
@@ -323,7 +325,7 @@ class Model {
 
       this.sqlUnit.where += andstr + whstr;
 
-    } else if (typeof cond === 'object') {
+    } else if (typeof cond === 'object' && cond !== null) {
       let tmp = [];
       let t = null;
       let vals = [];

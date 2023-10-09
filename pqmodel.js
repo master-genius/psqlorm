@@ -8,9 +8,11 @@ let forbidColumnName = [
   'like', 'ilike'
 ];
 
-//兼容realGlobal.his的改变
 let realGlobal = global
-if (realGlobal.his) realGlobal = realGlobal.his
+
+try {
+  if (globalThis) realGlobal = globalThis
+} catch (err) {}
 
 class PostgreModel {
 

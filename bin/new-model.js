@@ -4,9 +4,24 @@
 
 const fs = require('fs')
 
+function fmt_table_name(name) {
+  let arr = name.split('')
+  let narr = []
+
+  arr.forEach((x, index) => {
+    if (/[A-Z]/.test(x) && index > 1 && /[a-z]/.test(arr[index-1])) {
+       narr.push('_')
+    }
+
+    narr.push(x.toLowerCase())
+  })
+
+  return narr.join('')
+}
+
 function makeTable(name, separate=false) {
   let exp = separate ? 'module.exports =' : 'let table =';
-  let ust = separate ? `'use strict'\n` : '\n';
+  let ust = separate ? `'use strict'\n` : '';
 
 return `${ust}
 /**
@@ -119,7 +134,7 @@ class ${name} extends PostgreModel {
     //this.primaryKey = 'id'
 
     //数据表真正的名称，注意：postgresql不支持表名大写，更改名称请使用小写字母。
-    this.tableName = '${name.toLowerCase()}'
+    this.tableName = '${fmt_table_name(name)}'
 
     this.table = table
 
@@ -265,7 +280,7 @@ for (let c of mlist) {
 
   try {
     fs.writeFileSync(cpath, makeModel(`${c[0].toUpperCase()}${c.substring(1)}`, c, separate), {encoding: 'utf8'})
-    separate && fs.writeFileSync(table_dir+`/${c}.js`, makeTable(c.toLowerCase(), separate), {encoding: 'utf8'})
+    separate && fs.writeFileSync(table_dir+`/${c}.js`, makeTable(fmt_table_name(c), separate), {encoding: 'utf8'})
   } catch (err) {
     console.error(err)
   }
