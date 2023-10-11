@@ -47,8 +47,7 @@ return `${ust}
  *  STRING() CHAR() NUMBER() ARRAY() 是函数类型，其他如TEXT、INT、BIGINT等是普通属性值。
  */
 
-const dataTypes = require('psqlorm').dataTypes
-
+${separate ? 'const dataTypes = require(\'psqlorm\').dataTypes\n' : ''}
 ${exp} {
   column: {
     /**
@@ -113,7 +112,7 @@ function makeModel (name, orgname, separate=false) {
 
 let mstr = `'use strict'
 
-const PostgreModel = require('psqlorm').Model
+const {PostgreModel, dataTypes} = require('psqlorm')
 ${tableCode}
 class ${name} extends PostgreModel {
 
