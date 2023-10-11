@@ -1158,6 +1158,10 @@ class PostgreModel {
         await refm.sync(debug, force);
         tmp_col.type = refm.table.column[ refarr[1] ].type;
         tmp_col.references = `REFERENCES ${this.orm.schema}.${refm.tableName} (${refarr[1]})`;
+        
+        if (tmp_col.refActionUpdate === undefined) tmp_col.refActionUpdate = 'cascade';
+        if (tmp_col.refActionDelete === undefined) tmp_col.refActionDelete = 'cascade';
+
         if (tmp_col.refActionDelete) {
           tmp_col.references += ' ON DELETE ' + tmp_col.refActionDelete;
         }
