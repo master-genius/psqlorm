@@ -140,6 +140,10 @@ class ${name} extends PostgreModel {
 
     this.columns = Object.keys(this.table.column)
 
+    //这一行是示例代码，初始化需要的模型
+    // this.Users = new require('./users.js')(this.pqorm)
+    // 如果不传递参数，则会使用默认的值，将会查找原型上是否存在__pqorm__属性。
+    // this.Admin = new require('./admin.js')()
   }
 
   //示例：定义update、delete、insert的触发器。
@@ -167,8 +171,8 @@ class ${name} extends PostgreModel {
   }
 
   /**
-   * 事务处理示例函数。
-   * 示例代码仅作基本使用的参考...
+   * ------ 事务处理示例函数
+   * ------ 示例代码仅作基本使用的参考...
    */
   async example_transaction (data) {
     //只有使用参数传递的db执行sql才是事务操作。
@@ -186,12 +190,11 @@ class ${name} extends PostgreModel {
         }
         
         /*
-        示例：获取users模型并绑定到db。如果不使用bind绑定，则执行sql就不是事务操作。
-        在当前目录中存在一个users.js，定义class Users，relate('Users')函数用于获取一个模型实例。
-        你可以只用db，并指定table：db.table('users').where({role: 'test'}).update(data)
+          如果不使用bind绑定，则执行sql就不是事务操作。
+          你可以只用db，并指定table：db.table('users').where({role: 'test'}).update(data)
         */
         /*
-        let users = this.relate('Users').bind(db)
+        let users = this.Users.bind(db)
         await users.where({role: 'test'}).update(data)
         */
         
