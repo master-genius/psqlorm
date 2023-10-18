@@ -270,14 +270,16 @@ for (let c of mlist) {
 
   try {
     fs.accessSync(cpath)
-    console.error(`${c}.js already at here.`)
+    console.error(`${c}.js已经存在(${c}.js already exist).`)
     continue
   } catch (err) {}
 
-  try {
-    fs.accessSync(table_dir)
-  } catch (err) {
-    fs.mkdirSync(table_dir)
+  if (separate) {
+    try {
+      fs.accessSync(table_dir)
+    } catch (err) {
+      fs.mkdirSync(table_dir)
+    }
   }
 
   try {
