@@ -55,8 +55,6 @@ class PostgreModel {
 
     this.tableName = null;
 
-    this.relateName = null;
-
     this.primaryKey = 'id';
 
     this.lastError = null;
@@ -188,39 +186,6 @@ class PostgreModel {
     });
   }
 
-  /**
-   * 多个数据库连接会导致冲突，后续relate会废弃。
-   * 关联一个模型并返回，要求m必须是已经初始化好的。
-   * 名称是必须要有的，后续会通过名称查询缓存。
-   * 路径可以不传，此时如果name没有查询到，会返回null。
-   * 在能够找到更好方式之前，暂时使用realGlobal.__psqlorm_relate__来记录进而避免循环关联。
-   */
-  /*relate (name = '') {
-    let n = this.relateName || this.constructor.name || this.tableName;
-
-    if (!realGlobal.__psqlorm_relate__[n]) {
-      realGlobal.__psqlorm_relate__[n] = this;
-    }
-  
-    let n_lower_case = n.toLowerCase();
-    if (!realGlobal.__psqlorm_relate__[n_lower_case]) {
-      realGlobal.__psqlorm_relate__[n_lower_case] = this;
-    }
-
-    if (!name) return null;
-    
-    if (realGlobal.__psqlorm_relate__[name]) {
-      return realGlobal.__psqlorm_relate__[name];
-    }
-
-    let name_lower = name.toLowerCase();
-    if (realGlobal.__psqlorm_relate__[name_lower]) {
-      return realGlobal.__psqlorm_relate__[name_lower];
-    }
-
-    return null;
-  }*/
-
   model(tname='') {
     let m = this.orm.model(tname || this.tableName);
     m.__auto_id__ = this.__auto_id__;
@@ -262,6 +227,10 @@ class PostgreModel {
 
   autoId(b = null) {
     return this.model().autoId(b === null ? this.__auto_id__ : b);
+  }
+
+  getSchema() {
+    return this.orm ? this.orm.schema : '';
   }
 
   /**
