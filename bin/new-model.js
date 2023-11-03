@@ -190,7 +190,8 @@ class ${name} extends PostgreModel {
         
         /*
           如果不使用bind绑定，则执行sql就不是事务操作。
-          你可以只用db，并指定table：db.table('users').where({role: 'test'}).update(data)
+          你可以只用db，并指定table：
+              db.table('users').where({role: 'test'}).update(data)
         */
         /*
         let users = this.Users.bind(db)

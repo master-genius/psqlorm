@@ -2,6 +2,7 @@
 
 let types = {
   STRING: (len=200) => {
+    if (typeof len !== 'number' || len <= 0) { len = 200 }
     return `varchar(${len})`
   },
 
@@ -14,6 +15,7 @@ let types = {
   },
   
   CHAR: (len=100) => {
+    if (typeof len !== 'number' || len <= 0) { len = 100 }
     return `char(${len})`
   },
 

@@ -5,7 +5,7 @@ const pg = require('pg');
 const TableTrigger = require('./tableTrigger.js');
 const types = require('./dataTypes.js')
 
-let pqorm = function (db) {
+function pqorm(db) {
 
   if (!(this instanceof pqorm)) {
     return new pqorm(db);
