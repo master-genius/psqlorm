@@ -37,7 +37,7 @@ let types = {
   BINARY: 'bytea',
   BLOB: 'bytea',
   JSONB: 'jsonb',
-  ID: 'varchar(13)',
+  ID: 'varchar(16)',
   OPENID: 'varchar(40)'
 }
 

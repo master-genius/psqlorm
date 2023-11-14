@@ -16,13 +16,6 @@ let loopch = [
   "u","v","w","x","y","z"
 ]
 
-let sloopch = loopch.concat([
-  'A', 'B', 'C', 'D', 'E', 'F', 'G',
-  'H', 'I', 'J', 'K', 'L', 'M', 'N',
-  'O', 'P', 'Q', 'R', 'S', 'T', 'U',
-  'V', 'W', 'X', 'Y', 'Z', '_'
-])
-
 //不要在意一点点内存，用空间换时间
 let msloopch = []
 for (let x of loopch) {
@@ -31,10 +24,13 @@ for (let x of loopch) {
   }
 }
 
+let sloopch = msloopch.slice(0, 100)
+let yloopch = msloopch.slice(36, 500)
 msloopch = msloopch.slice(parseInt(Math.random() * 100))
 
 let loopLength = loopch.length
 let sloopLength = sloopch.length
+let yloopLength = yloopch.length
 
 class Clocks {
   constructor() {
@@ -69,9 +65,10 @@ class Clocks {
     
     let yind = year - this.startYear
 
-    if (yind < 1 || yind > sloopLength) yind = 1
+    if (yind < 0 || yind >= yloopLength) yind = 0
 
-    return sloopch[yind] + loopch[month] + loopch[dat] + loopch[hour] + sloopch[minute] + sloopch[seconds] + msloopch[ms]
+    //bits: 2 + 1 + 1 + 1 + 2 + 2 + 2 = 11
+    return yloopch[yind] + loopch[month] + loopch[dat] + loopch[hour] + sloopch[minute] + sloopch[seconds] + msloopch[ms]
   }
 
   getCharTime() {
@@ -95,15 +92,15 @@ class Clocks {
 
 }
 
-function longId(idLen=16, idPre = '') {
+function longId(idLen=18, idPre = '') {
   let pstr = (Date.now() - start_time).toString(16)
   let leng = pstr.length
-  if (idLen < 16) idLen = 16
+  if (idLen < 18) idLen = 18
   return idPre + pstr + randstring(idLen - leng)
 }
 
 function makeId (idLen = 12, idPre = '') {
-  if (idLen > 15) {
+  if (idLen > 17) {
     return longId(idLen, idPre);
   }
 
@@ -134,10 +131,10 @@ Object.defineProperty(makeId, 'serialId', {
     let _next = new Clocks()
     _next.rand()
 
-    return function sid (idLen=13, idPre='') {
-      if (idLen < 12) return makeId(idLen, idPre)
+    return function sid (idLen=16, idPre='') {
+      if (idLen < 14) return makeId(idLen, idPre)
 
-      return idPre + _next.getFullTime() + randstring(idLen - 11)
+      return idPre + _next.getFullTime() + randstring(idLen - 14)
     }
   }
 })

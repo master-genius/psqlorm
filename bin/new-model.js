@@ -62,13 +62,12 @@ ${exp} {
      * @type {column}
      * */
     name: {
-      //可以直接写字符串用于声明数据库字段的类型
-      type : 'varchar(30)',
+      //等效于 'varchar(30)'
+      type : dataTypes.STRING(30),
       default: ''
     },
 
     detail: {
-      //相当于 'varchar(200)'
       type: dataTypes.STRING(200),
       default: ''
     },
@@ -126,8 +125,8 @@ class ${name} extends PostgreModel {
     //主键id前缀，建议不要超过2字符，请确保前缀和idLen的长度 <= 数据库字段的最大长度。
     this.idPre = ''
 
-    //id的长度，默认为13，建议id长度不要低于13。
-    //this.idLen = 13
+    //id的长度，默认为16，为保证有序增长，建议id长度不要低于16。
+    //this.idLen = 16
 
     //默认主键名为id，并且是字符串类型，主键id会自动生成。
     //this.primaryKey = 'id'

@@ -61,7 +61,7 @@ class PostgreModel {
 
     this.idPre = '';
 
-    this.idLen = 13;
+    this.idLen = 16;
 
     this.pagesize = 100;
 
