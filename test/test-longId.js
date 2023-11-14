@@ -15,6 +15,7 @@ function check(id) {
     console.log(id, ++count)
     return true
   }
+  console.log(id)
 
   tid[id] = true
   return false
@@ -24,7 +25,7 @@ console.time('longid')
 
 for (let i = 0; i < 1000000; i++) {
   id = longId()
-  id2 = longId2()
+  id2 = longId2(14)
   check(id)
   check(id2)
   check(longId3())
