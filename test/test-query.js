@@ -14,7 +14,7 @@ pm.schema = 'www';
   let count = 0;
   let total = 100000;
   for (let i=0; i< total; i++) {
-    t = pm.model('goods').fetch();
+    t = pm.model('goods').fetchSql();
     r = await t.where('take_on=? AND (goods_type=? OR goods_type=?)', [1, 'g','p'])
                 .where({info: null})
                 .where('is_publish', 1)
@@ -28,7 +28,7 @@ pm.schema = 'www';
     count++;
 
     r = await pm.model('user_msg')
-                .fetch()
+                .fetchSql()
                 .where({
                   user_id : '1234',
                   'is_delete&1' : 0,
@@ -42,7 +42,7 @@ pm.schema = 'www';
 
     count++;
 
-    r = await pm.model('users', 'uni').fetch()
+    r = await pm.model('users', 'uni').fetchSql()
                 .returning('id,username')
                 .where({id: 'sdf32947239v', is_delete: 0})
                 .where('pass = ? and level > ?', ['12', 3])

@@ -1,8 +1,8 @@
 'use strict'
 
 const longId = require('../makeId').serialId
-const longId2 = require('../makeId').serialId
-const longId3 = require('../makeId').serialId
+const longId2 = require('../makeId').numId
+const longId3 = require('../makeId').bigId
 const longId4 = require('../makeId').serialId
 
 let tid = {}
@@ -15,7 +15,7 @@ function check(id) {
     console.log(id, ++count)
     return true
   }
-  console.log(id)
+  //console.log(id, typeof id)
 
   tid[id] = true
   return false
