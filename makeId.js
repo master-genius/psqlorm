@@ -4,9 +4,12 @@ const randstring = require('./randstring.js');
 
 //2017-2-25  2050
 let start_time = 1490390182066
-let t = new Date()
-if (t.getFullYear() > 2050) {
-  start_time = t.setFullYear(2045, 1, 25)
+
+let start_year = 2023
+
+if ((new Date()).getFullYear() > 2085) {
+  //start_time = t.setFullYear(2045, 1, 25)
+  start_year = 2086
 }
 
 let loopch = [
@@ -26,6 +29,7 @@ for (let x of loopch) {
 
 let sloopch = msloopch.slice(0, 100)
 let yloopch = msloopch.slice(36, 500)
+
 msloopch = msloopch.slice(parseInt(Math.random() * 100))
 
 let loopLength = loopch.length
@@ -121,6 +125,62 @@ function makeId (idLen = 12, idPre = '') {
   return tmstr;
 }
 
+let b_year = 2**47
+let b_month = 2**43
+let b_date = 2**38
+let b_hour = 2**33
+let b_min = 2**27
+let b_sec = 2**21
+let b_msec = 2**11
+
+let end_max = 4096
+
+function numId (obj) {
+  let t = new Date()
+
+  let first_num = (t.getFullYear() - start_year) * b_year + (t.getMonth()+1) * b_month
+                  + t.getDate() * b_date + t.getHours() * b_hour + t.getMinutes() * b_min
+                  + t.getSeconds() * b_sec + t.getMilliseconds() * b_msec
+
+  let fnum = first_num + obj.endnum
+
+  obj.endnum++
+
+  if (obj.endnum >= end_max) {
+    obj.endnum = 0
+  }
+
+  return fnum
+}
+
+function bigId(obj, a='', b='') {
+  let fnum = numId(obj)
+  return (BigInt(fnum) * 1000n + BigInt(parseInt(Math.random() * 1000))).toString()
+}
+
+Object.defineProperty(makeId, 'numId', {
+  enumerable: false,
+  configurable: false,
+  get: function () {
+    let oo = {
+      endnum: parseInt(Math.random() * 2000)
+    }
+
+    return numId.bind(null, oo)
+  }
+})
+
+Object.defineProperty(makeId, 'bigId', {
+  enumerable: false,
+  configurable: false,
+  get: function () {
+    let oo = {
+      endnum: parseInt(Math.random() * 2000)
+    }
+
+    return bigId.bind(null, oo)
+  }
+})
 
 makeId.longId = longId
 

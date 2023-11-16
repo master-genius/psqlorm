@@ -127,16 +127,53 @@ class PostgreModel {
       writable: true
     });
     
-    this.orgMakeId = makeId;
-    this.makeId = makeId.serialId;
+    Object.defineProperties(this, {
+      orgMakeId: {
+        enumerable: false,
+        configurable: false,
+        writable: false,
+        value: makeId
+      },
 
-    this.pools = [];
-    this.maxPool = 150;
+      _bigId: {
+        enumerable: false,
+        configurable: false,
+        writable: false,
+        value: makeId.bigId
+      },
+
+      _makeId: {
+        enumerable: false,
+        configurable: false,
+        writable: true,
+        value: makeId.serialId
+      },
+      __pool__: {
+        enumerable: false,
+        configurable: false,
+        writable: true,
+        value: []
+      },
+
+      maxPool: {
+        enumerable: false,
+        configurable: false,
+        writable: true,
+        value: 200
+      },
+
+      __pkey_type__: {
+        enumerable: false,
+        configurable: false,
+        writable: true,
+        value: 'v'
+      }
+    });
+
+    this.makeId = makeId.serialId;
     this.__bind_model__ = null;
 
     if (init) {
-      //if (!realGlobal.__psqlorm_relate__) realGlobal.__psqlorm_relate__ = {};
-
       process.nextTick(async () => {
         try {
           await this.__init__();
@@ -149,8 +186,6 @@ class PostgreModel {
   }
 
   async __init__ () {
-    //relate后续很可能废弃
-    //this.relate();
     if (!this.orm.tableTrigger.hasTable(this.tableName))
       this.initTrigger();
 
@@ -164,11 +199,22 @@ class PostgreModel {
     }
 
     //把table变成函数对象。
-    let _table = function (name) {return this.model(name);};
+    let _table = (name) => {return this.model(name);};
     for (let k in this.table) {
       _table[k] = this.table[k];
     }
     this.table = _table;
+    if (!this.table.column || typeof this.table.column !== 'object') {
+      throw new Error(`${this.constructor.name}: 缺少table.column或table.column不是object，请修改。\n`)
+    }
+    //判断主键类型并确定生成id的函数。
+    if (typeof this.primaryKey === 'string') {
+      let pktype = this.table.column[this.primaryKey].type;
+      if (pktype && pktype.trim().toLowerCase() === 'bigint') {
+        this._makeId = makeId.bigId
+        this.__pkey_type__ = 'b'
+      }
+    }
   }
 
   initTrigger () {
@@ -192,6 +238,7 @@ class PostgreModel {
     m.__id_len__ = this.idLen;
     m.__id_pre__ = this.idPre;
     m.__primary_key__ = this.primaryKey;
+    m.__pkey_type__ = this.__pkey_type__;
     if (this.__bind_model__) m.bind(this.__bind_model__);
     return m;
   }
@@ -200,18 +247,20 @@ class PostgreModel {
     let m = new this.constructor(this.orm, false)
     //model函数会检测此项并自动绑定
     m.__bind_model__ = db
-    m.pools = []
+    m.__pool__ = []
     m.getPool = null
     m.freePool = null
     m.__trigger__ = this.__trigger__
     m.__auto_id__ = this.__auto_id__
     m.table = this.table
     m.primaryKey = this.primaryKey
+    m._makeId = this._makeId
+    m.__pkey_type__ = this.__pkey_type__
     return m
   }
 
   getPool(db) {
-    let m = this.pools.pop()
+    let m = this.__pool__.pop()
     if (m) {
       m.__bind_model__ = db
       return m
@@ -222,7 +271,7 @@ class PostgreModel {
 
   freePool(m) {
     this.__bind_model__ = null
-    if (this.pools.length < this.maxPool) this.pools.push(m)
+    if (this.__pool__.length < this.maxPool) this.__pool__.push(m)
   }
 
   autoId(b = null) {
@@ -337,7 +386,7 @@ class PostgreModel {
     if (this.primaryKey && typeof this.primaryKey === 'string'
       && data[this.primaryKey] === undefined && this.__auto_id__)
     {
-      data[this.primaryKey] = this.makeId(this.idLen, this.idPre);
+      data[this.primaryKey] = this._makeId(this.idLen, this.idPre);
       h.returning(this.primaryKey);
     }
     
@@ -367,7 +416,7 @@ class PostgreModel {
 
       for (let i=0; i < data.length; i++) {
         if (data[i][this.primaryKey] === undefined) {
-          data[i][this.primaryKey] = this.makeId(this.idLen, this.idPre);
+          data[i][this.primaryKey] = this._makeId(this.idLen, this.idPre);
         }
 
         idlist.push(data[i].id);

@@ -9,15 +9,14 @@ let saltArr = [
 ];
 
 module.exports = (length = 8, sarr = null) => {
-
   let saltstr = '';
   let ind = 0;
 
   let arr = sarr || saltArr;
 
   for(let i = 0; i < length; i++) {
-    ind = parseInt( Math.random() * arr.length);
-    saltstr += saltArr[ ind ];
+    ind = parseInt(Math.random() * arr.length);
+    saltstr += arr[ind];
   }
 
   return saltstr;

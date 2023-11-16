@@ -15,7 +15,8 @@ let saltArr = [
   'o', 'u', 'v', 'x', 'w', 'z', 
   '_', '_', '_', 'x', 'x', 'o',
   'o', 'i', 'i', 'p', 'y', '_',
-  'x', 'x', '_', 'q', 'o', '_'
+  'x', 'x', '_', 'q', 'o', 'n',
+  'v', 'u', 'k', 'g', 't'
 ];
 
 let commandTable = {
@@ -62,6 +63,7 @@ class Model {
     });
 
     this.makeId = makeId.serialId;
+    this.bigId = makeId.bigId;
 
     this.tableTrigger = trigger;
 
@@ -91,10 +93,11 @@ class Model {
       selectFor: ''
     };
     
-    this.__id_len__ = 13;
+    this.__id_len__ = 16;
     this.__id_pre__ = '';
     this.__auto_id__ = false;
     this.__primary_key__ = 'id';
+    this.__pkey_type__ = 'v';
     //this.__trigger_before__ = false;
     this.__trigger_after__ = false;
     this.__trigger_commit__ = false;
@@ -121,6 +124,7 @@ class Model {
     m.__transaction__ = this.__transaction__;
     m.__trigger_commit__ = this.__trigger_commit__;
     m.__trigger_after__ = this.__trigger_after__;
+    m.__pkey_type__ = this.__pkey_type__;
     //m.__free_lock__ = this.__free_lock__;
     /**
      * 复制的新模型处于锁定状态，执行sql以后不会自动释放到连接池，开发者可以继续执行新的sql。
@@ -157,13 +161,15 @@ class Model {
     this.__trigger_after__ = false;
     this.__trigger_commit__ = false;
     this.__log_sql__ = null;
+    this.__pkey_type__ = 'v';
   }
 
   resetIdInfo() {
     this.__auto_id__ = false;
     this.__primary_key__ = 'id';
-    this.__id_len__ = 12;
+    this.__id_len__ = 16;
     this.__id_pre__ = '';
+    this.__pkey_type__ = 'v';
   }
 
   makeQuoteTag(len = 5) {
@@ -195,6 +201,7 @@ class Model {
 
   autoId(b=true) {
     this.__auto_id__ = b;
+    if (b === 'b' || b === 'v') this.__pkey_type__ = b;
     return this;
   }
 
@@ -240,8 +247,8 @@ class Model {
     return this;
   }
 
-  fetch() {
-    this.__fetch_sql__ = true;
+  fetchSql(b=true) {
+    this.__fetch_sql__ = b;
     return this;
   }
 
@@ -250,11 +257,6 @@ class Model {
       this.__log_sql__ = callback;
     }
 
-    return this;
-  }
-
-  run() {
-    this.__fetch_sql__ = false;
     return this;
   }
 
@@ -590,7 +592,11 @@ class Model {
       && this.__primary_key__ && typeof this.__primary_key__ === 'string' 
       && data[this.__primary_key__] === undefined)
     {
-      data[this.__primary_key__] = this.makeId(this.__id_len__, this.__id_pre__);
+      if (this.__pkey_type__ === 'v') {
+        data[this.__primary_key__] = this.makeId(this.__id_len__, this.__id_pre__);
+      } else {
+        data[this.__primary_key__] = this.bigId();
+      }
     }
 
     let fields = Object.keys(data);
@@ -609,10 +615,14 @@ class Model {
       throw new Error('data must be array and length > 0');
     }
 
+    let genid = this.makeId;
+    if (this.__pkey_type__ === 'b') genid = this.bigId;
+
     if (this.__auto_id__ && this.__primary_key__ && typeof this.__primary_key__ === 'string') {
       for (let i = 0; i < data.length; i++) {
-        if (data[i][this.__primary_key__] === undefined)
-          data[i][this.__primary_key__] = this.makeId(this.__id_len__, this.__id_pre__);
+        if (data[i][this.__primary_key__] === undefined) {
+          data[i][this.__primary_key__] = genid(this.__id_len__, this.__id_pre__);
+        }
       }
     }
 
