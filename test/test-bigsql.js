@@ -2,7 +2,7 @@ const porm = require('../pqorm.js');
 
 let pm = new porm(null);
 
-let total = 100000;
+let total = 200000;
 
 start_time = Date.now();
 
