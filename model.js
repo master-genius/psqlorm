@@ -2,6 +2,7 @@
 
 const randstring = require('./randstring.js');
 const makeId = require('./makeId.js');
+const makeTimestamp = require('./makeTimestamp.js')
 
 let modelErrorText = '\n\x1b[2;31;47mWarning: model执行后会自动释放模型，'
     + '若需要重复使用，请调用connect()持有当前model实例，并在执行完毕后调用free()释放。\n'
@@ -98,6 +99,8 @@ class Model {
     this.__auto_id__ = false;
     this.__primary_key__ = 'id';
     this.__pkey_type__ = 'v';
+    this.__insert_timestamp__ = null;
+    this.__update_timestamp__ = null;
     //this.__trigger_before__ = false;
     this.__trigger_after__ = false;
     this.__trigger_commit__ = false;
@@ -126,6 +129,8 @@ class Model {
     m.__trigger_after__ = this.__trigger_after__;
     m.__pkey_type__ = this.__pkey_type__;
     //m.__free_lock__ = this.__free_lock__;
+    m.__insert_timestamp__ = this.__insert_timestamp__;
+    m.__update_timestamp__ = this.__update_timestamp__;
     /**
      * 复制的新模型处于锁定状态，执行sql以后不会自动释放到连接池，开发者可以继续执行新的sql。
      * 如果是false，则执行后会自动释放回连接池，此时如果开发者不了解内部设计，再次重复使用。
@@ -162,6 +167,8 @@ class Model {
     this.__trigger_commit__ = false;
     this.__log_sql__ = null;
     this.__pkey_type__ = 'v';
+    this.__insert_timestamp__ = null;
+    this.__update_timestamp__ = null;
   }
 
   resetIdInfo() {
@@ -255,6 +262,25 @@ class Model {
   logSql(callback=null) {
     if (callback && typeof callback === 'function') {
       this.__log_sql__ = callback;
+    }
+
+    return this;
+  }
+
+  /**
+   * 
+   * @param {object} tobj
+   *  - insert {array}
+   *  - update {array} 
+   * @returns this
+   */
+  timestamp(tobj) {
+    if (tobj) {
+      (tobj.insert !== undefined) && (this.__insert_timestamp__ = tobj.insert);
+      (tobj.update !== undefined) && (this.__update_timestamp__ = tobj.update);
+    } else {
+      this.__insert_timestamp__ = null;
+      this.__update_timestamp__ = null;
     }
 
     return this;
@@ -599,6 +625,10 @@ class Model {
       }
     }
 
+    //检测是否自动创建时间戳
+    this.__insert_timestamp__ && makeTimestamp(data, this.__insert_timestamp__);
+    this.__update_timestamp__ && makeTimestamp(data, this.__update_timestamp__);
+
     let fields = Object.keys(data);
     this.sqlUnit.command = commandTable.INSERT;
     this.sqlUnit.fields = `(${fields.join(',')})`;
@@ -623,6 +653,9 @@ class Model {
         if (data[i][this.__primary_key__] === undefined) {
           data[i][this.__primary_key__] = genid(this.__id_len__, this.__id_pre__);
         }
+
+        this.__insert_timestamp__ && makeTimestamp(data[i], this.__insert_timestamp__);
+        this.__update_timestamp__ && makeTimestamp(data[i], this.__update_timestamp__);
       }
     }
 
@@ -653,9 +686,9 @@ class Model {
       this.sqlUnit.values = data;
     } else {
       let vals = [];
+      this.__update_timestamp__ && makeTimestamp(data, this.__update_timestamp__);
 
       for (let k in data) {
-
         if (k[0] === '@') {
           vals.push(`${k.substring(1)}=${data[k]}`);
           continue;

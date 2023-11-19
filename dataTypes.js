@@ -44,4 +44,3 @@ let types = {
 types.DECIMAL = types.NUMBER
 
 module.exports = types
-

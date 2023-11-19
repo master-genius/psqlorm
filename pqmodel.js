@@ -1,12 +1,27 @@
 'use strict';
 
 const makeId = require('./makeId.js');
-
 const randstring = require('./randstring.js');
+const makeTimestamp = require('./makeTimestamp.js')
 
 let forbidColumnName = [
   'like', 'ilike'
 ];
+
+let make_timestamp_func = (typ) => {
+  if (!typ) return null;
+
+  let real_typ = typ.trim().toLowerCase()
+  if (real_typ === 'bigint') return 'bigint';
+
+  if (real_typ.indexOf('varchar') === 0 || real_typ.indexOf('timestamp') === 0) {
+    return () => {
+      return (new Date()).toLocaleString().replaceAll('/', '-')
+    }
+  }
+
+  return null
+}
 
 /**
  * 在原型上设计一个支持自动化初始化的函数支持。
@@ -167,6 +182,13 @@ class PostgreModel {
         configurable: false,
         writable: true,
         value: 'v'
+      },
+
+      __auto_timestamp__: {
+        enumerable: false,
+        configurable: false,
+        writable: true,
+        value: {}
       }
     });
 
@@ -199,7 +221,14 @@ class PostgreModel {
     }
 
     //把table变成函数对象。
-    let _table = (name) => {return this.model(name);};
+    let _table = (name) => {
+      let m = this.model(name);
+      if (name && name !== this.tableName) {
+        return m.timestamp(false);
+      }
+      return m;
+    };
+
     for (let k in this.table) {
       _table[k] = this.table[k];
     }
@@ -213,6 +242,30 @@ class PostgreModel {
       if (pktype && pktype.trim().toLowerCase() === 'bigint') {
         this._makeId = makeId.bigId
         this.__pkey_type__ = 'b'
+      }
+    }
+
+    //检测是否存在自动生成时间戳
+    let _col = null;
+    let _timestamp_action = '';
+    for (let k in this.table.column) {
+      _col = this.table.column[k]
+
+      if (!_col.timestamp || typeof _col.timestamp !== 'string') {
+        continue
+      }
+
+      _timestamp_action = _col.timestamp.trim().toLowerCase()
+      if (_timestamp_action === 'insert') {
+        this.__auto_timestamp__.insert = [
+          k,
+          _col.timestampCallback || make_timestamp_func(_col.type)
+        ];
+      } else if (_timestamp_action === 'update') {
+        this.__auto_timestamp__.update = [
+          k,
+          _col.timestampCallback || make_timestamp_func(_col.type)
+        ];
       }
     }
   }
@@ -232,6 +285,10 @@ class PostgreModel {
     });
   }
 
+  timestamp(tobj) {
+    return this.model().timestamp(tobj)
+  }
+
   model(tname='') {
     let m = this.orm.model(tname || this.tableName);
     m.__auto_id__ = this.__auto_id__;
@@ -239,6 +296,8 @@ class PostgreModel {
     m.__id_pre__ = this.idPre;
     m.__primary_key__ = this.primaryKey;
     m.__pkey_type__ = this.__pkey_type__;
+    this.__auto_timestamp__.insert && (m.__insert_timestamp__ = this.__auto_timestamp__.insert);
+    this.__auto_timestamp__.update && (m.__update_timestamp__ = this.__auto_timestamp__.update);
     if (this.__bind_model__) m.bind(this.__bind_model__);
     return m;
   }
@@ -256,6 +315,7 @@ class PostgreModel {
     m.primaryKey = this.primaryKey
     m._makeId = this._makeId
     m.__pkey_type__ = this.__pkey_type__
+    m.__auto_timestamp__ = this.__auto_timestamp__
     return m
   }
 
@@ -381,6 +441,9 @@ class PostgreModel {
    * @returns Promise
    */
   async insert(data, options = {schema: null}) {
+    this.__auto_timestamp__.insert && makeTimestamp(data, this.__auto_timestamp__.insert);
+    this.__auto_timestamp__.update && makeTimestamp(data, this.__auto_timestamp__.update);
+
     let h = this._mschema(options.schema);
 
     if (this.primaryKey && typeof this.primaryKey === 'string'
@@ -404,9 +467,9 @@ class PostgreModel {
    */
   async insertAll(data, options = {schema: null}) {
     if (!Array.isArray(data)) {
-      return false;
+      throw new Error(`data不是数组，无法写入多个条目到数据库。`);
     }
-    
+
     let idlist = [];
 
     let h = this._mschema(options.schema);
@@ -415,6 +478,14 @@ class PostgreModel {
       h.returning(this.primaryKey);
 
       for (let i=0; i < data.length; i++) {
+        this.__auto_timestamp__.insert
+          &&
+        makeTimestamp(data[i], this.__auto_timestamp__.insert);
+
+        this.__auto_timestamp__.update
+          &&
+        makeTimestamp(data[i], this.__auto_timestamp__.update);
+    
         if (data[i][this.primaryKey] === undefined) {
           data[i][this.primaryKey] = this._makeId(this.idLen, this.idPre);
         }
@@ -438,6 +509,8 @@ class PostgreModel {
    * @returns Promise
    */
   async update(cond, data, options={schema: null}) {
+    this.__auto_timestamp__.update && makeTimestamp(data, this.__auto_timestamp__.update);
+    
     let h = this._mschema(options.schema);
 
     options.returning && (h = h.returning(options.returning));
@@ -1002,9 +1075,7 @@ class PostgreModel {
    *  - where 条件，使用object类型，参考where接口。
    */
   async group (gby, options = {}) {
-    let t = this.model(options.schema || null)
-                .where(options.where || {})
-                .group(gby);
+    let t = this.model().where(options.where || {}).group(gby);
 
     if (options.order) t = t.order(options.order);
 
@@ -1597,7 +1668,9 @@ class PostgreModel {
       if (tmp === undefined || tmp.drop || tmp.ignore) {
         
         if (debug) {
-          console.error( ` -- 忽略 index ${indname} -- 请检查索引相关的column是否存在。` );
+          console.error(
+            ` \x1b[2;35m-- 忽略 index ${indname} -- 请检查索引相关的column是否存在。\x1b[0m`
+          );
         }
 
         return false;
@@ -1671,7 +1744,7 @@ class PostgreModel {
       }
 
       if (checkColumn(indname) === false) {
-        console.error(`-- ${indname} ： 没有此列或包含不存在的列，无法创建索引。`);
+        console.error(`\x1b[2;35m-- ${indname} ： 没有此列或包含不存在的列，无法创建索引。\x1b[0m`);
         continue;
       }
 
