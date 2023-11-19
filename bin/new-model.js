@@ -77,7 +77,9 @@ ${exp} {
      * */
     create_time: {
       type : dataTypes.BIGINT,
-      default: 0
+      default: 0,
+      //执行insert时自动生成时间戳
+      timestamp: 'insert'
     },
     
     /**
@@ -85,7 +87,9 @@ ${exp} {
      * */
     update_time: {
       type : dataTypes.BIGINT,
-      default: 0
+      default: 0,
+      //执行update时自动生成时间戳
+      timestamp: 'update'
     },
   },
 
@@ -103,48 +107,8 @@ ${exp} {
 `
 }
 
-function makeModel (name, orgname, separate=false) {
-
-  let imp_table = `const table = require('./tables/${orgname}.js')\n`
-
-  let tableCode = separate ? imp_table : makeTable(name, separate)
-
-let mstr = `'use strict'
-
-const {PostgreModel, dataTypes} = require('psqlorm')
-${tableCode}
-class ${name} extends PostgreModel {
-
-  constructor (pqorm) {
-    //必须存在并且写在最前面。
-    super(pqorm)
-
-    //主要用于引用外键时，用于获取当前模块的路径，也可以在外键引用ref属性上指定路径。
-    this.modelPath = __dirname
-
-    //主键id前缀，建议不要超过2字符，请确保前缀和idLen的长度 <= 数据库字段的最大长度。
-    this.idPre = ''
-
-    //id的长度，默认为16，为保证有序增长，建议id长度不要低于16。
-    //this.idLen = 16
-
-    //默认主键名为id，并且是字符串类型，主键id会自动生成。
-    //this.primaryKey = 'id'
-
-    //数据表真正的名称，注意：postgresql不支持表名大写，更改名称请使用小写字母。
-    this.tableName = '${fmt_table_name(name)}'
-
-    this.table = table
-
-    this.columns = Object.keys(this.table.column)
-
-    //这一行是示例代码，初始化需要的模型
-    // this.Users = new require('./users.js')(this.pqorm)
-    // 如果不传递参数，则会使用默认的值，将会查找原型上是否存在__pqorm__属性。
-    // this.Admin = new require('./admin.js')()
-  }
-
-  //示例：定义update、delete、insert的触发器。
+let example_code = `
+  //示例：定义update、delete、insert的触发器，触发器在执行sql之后才会执行。
   /*
   triggerInsert (tg) {
     console.log(tg);
@@ -206,7 +170,49 @@ class ${name} extends PostgreModel {
 
     return ret
   }
-  
+`
+
+function makeModel (name, orgname, separate=false, exampleCode='') {
+
+  let imp_table = `const table = require('./tables/${orgname}.js')\n`
+
+  let tableCode = separate ? imp_table : makeTable(name, separate)
+
+let mstr = `'use strict'
+
+const {PostgreModel, dataTypes} = require('psqlorm')
+${tableCode}
+class ${name} extends PostgreModel {
+
+  constructor (pqorm) {
+    //必须存在并且写在最前面。
+    super(pqorm)
+
+    //主要用于引用外键时，用于获取当前模块的路径，也可以在外键引用ref属性上指定路径。
+    this.modelPath = __dirname
+
+    //主键id前缀，建议不要超过2字符，请确保前缀和idLen的长度 <= 数据库字段的最大长度。
+    this.idPre = ''
+
+    //id的长度，默认为16，为保证有序增长，建议id长度不要低于16。
+    //this.idLen = 16
+
+    //默认主键名为id，并且是字符串类型，主键id会自动生成。
+    //this.primaryKey = 'id'
+
+    //数据表真正的名称，注意：postgresql不支持表名大写，更改名称请使用小写字母。
+    this.tableName = '${fmt_table_name(name)}'
+
+    this.table = table
+
+    this.columns = Object.keys(this.table.column)
+
+    //以下是示例代码，初始化需要的模型
+    // this.users = new require('./users.js')(this.pqorm)
+    // 如果不传递参数，则会使用默认的值，将会查找原型上是否存在__pqorm__属性。
+    // this.admin = new require('./admin.js')()
+  }
+  ${exampleCode}
 }
 
 module.exports = ${name}
@@ -226,6 +232,7 @@ let mdir = 'model'
 let mlist = []
 
 let separate = false
+let make_example_code = false
 
 for (let i = 2; i < process.argv.length; i++) {
   if (process.argv[i].indexOf('--mdir=') === 0) {
@@ -241,6 +248,11 @@ for (let i = 2; i < process.argv.length; i++) {
 
   if (['-s', '--separate'].indexOf(process.argv[i]) >= 0) {
     separate = true
+    continue
+  }
+
+  if (['-e', '--example'].indexOf(process.argv[i]) >= 0) {
+    make_example_code = true
     continue
   }
 
@@ -283,7 +295,7 @@ for (let c of mlist) {
   }
 
   try {
-    fs.writeFileSync(cpath, makeModel(`${c[0].toUpperCase()}${c.substring(1)}`, c, separate), {encoding: 'utf8'})
+    fs.writeFileSync(cpath, makeModel(`${c[0].toUpperCase()}${c.substring(1)}`, c, separate, make_example_code ? example_code : ''), {encoding: 'utf8'})
     separate && fs.writeFileSync(table_dir+`/${c}.js`, makeTable(fmt_table_name(c), separate), {encoding: 'utf8'})
   } catch (err) {
     console.error(err)
