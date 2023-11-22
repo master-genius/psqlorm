@@ -43,6 +43,13 @@ function pqorm(db) {
     value: [],
   });
 
+  Object.defineProperty(this, '__register__', {
+    enumerable: false,
+    configurable: false,
+    writable: false,
+    value: {},
+  });
+
   this.tableTrigger = new TableTrigger();
 }
 

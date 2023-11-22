@@ -197,17 +197,27 @@ class PostgreModel {
 
     if (init) {
       process.nextTick(async () => {
-        try {
-          await this.__init__();
-        } catch (err) {
-          console.error(err);
-        }
+        await this.__init__();
       });
     }
 
   }
 
   async __init__ () {
+    this.tableName = this.tableName.trim();
+    if (!this.tableName || typeof this.tableName !== 'string') {
+      throw new Error('未指定表名称');
+    }
+
+    if ((/[A-Z]+/).test(this.tableName)) {
+      console.error(`${this.tableName} 表名不支持大写，已自动更改为小写。`);
+      this.tableName = this.tableName.toLowerCase();
+    }
+
+    if ((/[\s\*\$\@\!\~\%\^\&\(\)\:\.\,\<\>\)\[\]\/\\\|\{\}\=\+]+/).test(this.tableName)) {
+      throw new Error(`${this.tableName} 数据表名称不合法，不能包含空白字符和特殊字符，支持字母数字下划线。`);
+    }
+
     if (!this.orm.tableTrigger.hasTable(this.tableName))
       this.initTrigger();
 
@@ -220,6 +230,10 @@ class PostgreModel {
       else if (this.primaryKey.length === 1) this.primaryKey = this.primaryKey[0];
     }
 
+    if (!this.orm.__register__[this.tableName]) {
+      this.orm.__register__[this.tableName] = this;
+    }
+
     //把table变成函数对象。
     let _table = (name='') => {
       return this.model(name);
@@ -228,10 +242,12 @@ class PostgreModel {
     for (let k in this.table) {
       _table[k] = this.table[k];
     }
+
     this.table = _table;
     if (!this.table.column || typeof this.table.column !== 'object') {
-      throw new Error(`${this.constructor.name}: 缺少table.column或table.column不是object，请修改。\n`)
+      throw new Error(`${this.constructor.name} 缺少table.column或table.column不是object，请修改。\n`)
     }
+
     //判断主键类型并确定生成id的函数。
     if (typeof this.primaryKey === 'string') {
       let pktype = this.table.column[this.primaryKey].type;
@@ -246,6 +262,10 @@ class PostgreModel {
     let _timestamp_action = '';
     for (let k in this.table.column) {
       _col = this.table.column[k]
+      if (!_col || typeof _col !== 'object') {
+        console.error(`${this.tableName}: ${k} 未指定为object类型，请修改。`)
+        continue
+      }
 
       if (!_col.timestamp || typeof _col.timestamp !== 'string') {
         continue
@@ -286,6 +306,12 @@ class PostgreModel {
   }
 
   model(tname='') {
+    if (tname && this.tableName !== tname && this.orm.__register__[tname]) {
+      let pm = this.orm.__register__[tname].model();
+      this.__bind_model__ && pm.bind(this.__bind_model__);
+      return pm;
+    }
+
     let m = this.orm.model(tname || this.tableName);
     m.__auto_id__ = this.__auto_id__;
     m.__id_len__ = this.idLen;
