@@ -221,12 +221,8 @@ class PostgreModel {
     }
 
     //把table变成函数对象。
-    let _table = (name) => {
-      let m = this.model(name);
-      if (name && name !== this.tableName) {
-        return m.timestamp(false);
-      }
-      return m;
+    let _table = (name='') => {
+      return this.model(name);
     };
 
     for (let k in this.table) {
@@ -296,9 +292,13 @@ class PostgreModel {
     m.__id_pre__ = this.idPre;
     m.__primary_key__ = this.primaryKey;
     m.__pkey_type__ = this.__pkey_type__;
-    this.__auto_timestamp__.insert && (m.__insert_timestamp__ = this.__auto_timestamp__.insert);
-    this.__auto_timestamp__.update && (m.__update_timestamp__ = this.__auto_timestamp__.update);
-    if (this.__bind_model__) m.bind(this.__bind_model__);
+
+    if (!tname || this.tableName === tname) {
+      this.__auto_timestamp__.insert && (m.__insert_timestamp__ = this.__auto_timestamp__.insert);
+      this.__auto_timestamp__.update && (m.__update_timestamp__ = this.__auto_timestamp__.update);
+    }
+
+    this.__bind_model__ && m.bind(this.__bind_model__);
     return m;
   }
 
