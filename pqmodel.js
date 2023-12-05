@@ -1436,7 +1436,6 @@ class PostgreModel {
      *    typeLock 为true表示不进行类型更新。
      */
   async _syncColumn (inf, curTableName, debug = false, force = false, dropNotExistCol = false) {
-    
     let qtag = randstring(12);
     let pt = '';
     let real_type = '';
@@ -1447,8 +1446,9 @@ class PostgreModel {
       console.log('-- 检测并同步columns(checking columns)...');
     }
 
-    for (let k in this.table.column) {
+    let renameTable = {};
 
+    for (let k in this.table.column) {
       col = this.table.column[k];
       
       if (col.ignore) {
@@ -1464,11 +1464,13 @@ class PostgreModel {
         continue;
       }
 
-      if (col.oldName) {
-        if (inf[k] === undefined && inf[col.oldName]) {
+      if (col.oldName && typeof col.oldName === 'string' && col.oldName.trim()) {
+        if (inf[k] === undefined && inf[col.oldName.trim()]) {
           await this.db.query(`alter table ${curTableName} rename ${col.oldName} to ${k}`);
           //保证后续的检测不会错误的创建字段。
-          inf[k] = inf[col.oldName];
+          inf[k] = inf[col.oldName.trim()];
+          //执行重命名之后，在强制更新模式，检测inf字段，oldName已经不在this.table.column中。
+          renameTable[col.oldName.trim()] = true;
         }
       }
 
@@ -1516,7 +1518,6 @@ class PostgreModel {
       }
       
       if (this._compareType(inf[k], col, real_type) === false) {
-
         /**
          * 在涉及到隐含类型转换时，会自动转换，否则需要指定转换规则。
          * 比如遇到问题是字符串类型 => 时间 | 数字
@@ -1593,7 +1594,7 @@ class PostgreModel {
     //force模式检测若有数据表字段，在程序中未定义，则直接删除。
     if (dropNotExistCol) {
       for (let k in inf) {
-        if (!this.table.column[k]) {
+        if (!this.table.column[k] && !renameTable[k]) {
           await this.db.query(`alter table ${curTableName} drop column ${k}`);
         }
       }
