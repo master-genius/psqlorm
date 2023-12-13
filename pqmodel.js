@@ -459,6 +459,14 @@ class PostgreModel {
   }
 
   /**
+   * @param count {number} - 限制返回的条数。
+   * @param offset {number} - 偏移量，默认值为0。
+   * */
+  limit(count, offset=0) {
+    return this.model().limit((count && typeof count === 'number' && count > 0) ? count : 100, offset);
+  }
+
+  /**
    * 
    * @param data {object} - 要插入的数据对象
    * @param options {object}
