@@ -1652,18 +1652,22 @@ class PostgreModel {
       indexTable[idx.indexname] = idx;
       now_index_list.push(idx.indexname);
     }
+
+    let makeIndexName = (name) => {
+      return name.split(',').map(x => x.trim()).filter(p => p.length > 0).join('_');
+    }
     
     let allIndex = {};
     if (this.table.index && Array.isArray(this.table.index)) {
       this.table.index.forEach(a => {
-        allIndex[`${this.tableName}_${a.replaceAll(',', '_').replaceAll(' ', '')}_idx`] = a;
+        allIndex[`${this.tableName}_${makeIndexName(a)}_idx`] = a;
       });
     }
     
     let allUnique = {};
     if (this.table.unique && Array.isArray(this.table.unique)) {
       this.table.unique.forEach(a => {
-        allUnique[`${this.tableName}_${a.replaceAll(',', '_').replaceAll(' ', '')}_idx`] = a;
+        allUnique[`${this.tableName}_${makeIndexName(a)}_idx`] = a;
       });
     }
 
@@ -1693,7 +1697,12 @@ class PostgreModel {
   }
 
   async _checkIndex(indname, debug = false) {
-    let indsplit = indname.split(',').filter(p => p.length > 0);
+    let indsplit = indname.split(',').map(x => x.trim()).filter(p => p.length > 0);
+
+    if (indsplit.length <= 0) {
+      debug && console.error(` \x1b[2;35m-- ${indname} 错误的索引项。\x1b[0m`);
+      return false;
+    }
 
     let tmp = null;
     for (let i = 0; i < indsplit.length; i++) {
@@ -1713,14 +1722,10 @@ class PostgreModel {
 
     }
 
-    let indtext = indname;
-
     /**
      * postgresql 会把联合索引多个字段使用 _ 连接。
      */
-    if (indname.indexOf(',') > 0) {
-      indtext = indname.replaceAll(',', '_');
-    }
+    let indtext = indsplit.join('_');
 
     //在pg_indexes中不能带上schema
     let sql = `select * from pg_indexes where `
@@ -1732,7 +1737,7 @@ class PostgreModel {
       return false;
     }
 
-    return true;
+    return indsplit.join(',');
   }
 
   async _syncIndex(curTableName, debug = false) {
@@ -1767,8 +1772,23 @@ class PostgreModel {
       return true;
     }
 
+    let compareIndex = (a, b) => {
+      if (a.replaceAll(' ', '') === b.replaceAll(' ', '')) return true;
+  
+      return false;
+    };
+
+    let checkInUnique = (name) => {
+      if (!Array.isArray(this.table.unique)) return true;
+
+      for (let a of this.table.unique) {
+        if (compareIndex(name, a)) return true;
+      }
+
+      return false;
+    };
+
     for (let i = 0; i < this.table.index.length; i++) {
-      
       indname = this.table.index[i];
 
       if (this.table.removeIndex !== undefined
@@ -1780,6 +1800,11 @@ class PostgreModel {
 
       if (checkColumn(indname) === false) {
         console.error(`\x1b[2;35m-- ${indname} ： 没有此列或包含不存在的列，无法创建索引。\x1b[0m`);
+        continue;
+      }
+
+      if (checkInUnique(indname)) {
+        console.error(`\x1b[2;35m-- ${indname} ： 同时配置了index索引和unique索引，请修改。\x1b[0m`);
         continue;
       }
 
@@ -1798,7 +1823,7 @@ class PostgreModel {
         }
       }
       
-      await this.db.query(`create index on ${curTableName} ${ind_using}(${indname})`);
+      await this.db.query(`create index on ${curTableName} ${ind_using}(${indchk})`);
     }
 
   }
@@ -1842,7 +1867,7 @@ class PostgreModel {
         continue;
       }
 
-      await this.db.query(`create unique index on ${curTableName} (${indname})`);
+      await this.db.query(`create unique index on ${curTableName} (${indchk})`);
     }
 
   }
@@ -1858,23 +1883,21 @@ class PostgreModel {
 
     let tind = '';
     let sql = '';
+    let indchk = '';
 
     for (let i = 0; i < real_indexs.length; i++) {
       
       //表示没有此索引
-      if (true === await this._checkIndex(real_indexs[i])) {
+      indchk = await this._checkIndex(real_indexs[i]);
+      if (indchk) {
         continue;
       }
 
-      tind = real_indexs[i];
-      
-      if (tind.trim() === '') {
+      if (real_indexs[i].trim() === '') {
         continue;
       }
 
-      while (tind.indexOf(',') > 0) {
-        tind = tind.replaceAll(',', '_').replaceAll(' ', '');
-      }
+      tind = real_indexs[i].split(',').map(x => x.trim()).filter(p => p.length > 0).join('_');
 
       sql = `drop index ${curTableName}_${tind}_idx`;
       try {
