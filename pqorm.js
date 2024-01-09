@@ -120,6 +120,10 @@ pqorm.prototype.end = function () {
   this.db.end()
 }
 
+pqorm.prototype.query = function(sql, args) {
+  return this.db.query(sql, args||[])
+}
+
 pqorm.initORM = (config, schema = null) => {
   let pg = require('pg');
   let orm = new pqorm(new pg.Pool(config));
@@ -130,4 +134,3 @@ pqorm.initORM = (config, schema = null) => {
 pqorm.dataTypes = types
 
 module.exports = pqorm
-

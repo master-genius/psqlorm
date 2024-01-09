@@ -418,6 +418,10 @@ class PostgreModel {
     return this.model().returning(r);
   }
 
+  alias(name) {
+    return this.model().alias(name);
+  }
+
   join(m, on, join_type = 'inner') {
     let tname;
 
@@ -427,7 +431,7 @@ class PostgreModel {
       tname = m.tableName;
     }
 
-    return this.orm.model(this.tableName).join(tname, on, join_type);
+    return this.model(this.tableName).join(tname, on, join_type);
   }
 
   /**
