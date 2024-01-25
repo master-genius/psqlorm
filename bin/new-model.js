@@ -207,10 +207,12 @@ class ${name} extends PostgreModel {
 
     this.columns = Object.keys(this.table.column)
 
-    //以下是示例代码，初始化需要的模型
-    // this.users = new require('./users.js')(this.pqorm)
+    // 以下是示例代码，初始化需要的模型
+    // let User = require('./users.js')
+    // this.users = new User(this.orm)
     // 如果不传递参数，则会使用默认的值，将会查找原型上是否存在__pqorm__属性。
-    // this.admin = new require('./admin.js')()
+    // let Admin = require('./admin.js')
+    // this.admin = new Admin()
   }
   ${exampleCode}
 }
