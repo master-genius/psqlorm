@@ -3,6 +3,7 @@
 const mo = require ('./model.js');
 const TableTrigger = require('./tableTrigger.js');
 const types = require('./dataTypes.js');
+const makeId = require('./makeId.js');
 
 function pqorm(db) {
   if (!(this instanceof pqorm)) {
@@ -132,5 +133,6 @@ pqorm.initORM = (config, schema = null) => {
 }
 
 pqorm.dataTypes = types
+pqorm.makeId = makeId
 
 module.exports = pqorm

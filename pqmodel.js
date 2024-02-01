@@ -1203,9 +1203,8 @@ class PostgreModel {
     for (let k in this.table.column) {
       col = k.toLowerCase()
       if (forbidColumnName.indexOf(col) >= 0) {
-        setTimeout(() => {
-          console.error(`\x1b[2;31;47m!!!${this.tableName} column ${k} 命名和sql关键字冲突，请修改。\x1b[0m`);
-        }, 900);
+        console.error(`\x1b[2;31;47m!!!${this.tableName} column ${k} 命名和sql关键字冲突，请修改。\x1b[0m`);
+        process.exit(1);
         illegal_count++;
         continue;
       }
@@ -1220,9 +1219,8 @@ class PostgreModel {
 
       cobj = this.table.column[k];
       if (!cobj.type && !cobj.ref) {
-        setTimeout(() => {
-          console.error(`\x1b[2;31;47m!! column ${col} 没有设置type指定类型，也没有使用ref指定外键关联，请检查。\x1b[0m`);
-        }, 900);
+        console.error(`\x1b[2;31;47m!! column ${col} 没有设置type指定类型，也没有使用ref指定外键关联，请检查。\x1b[0m`);
+        process.exit(1);
         illegal_count++;
       }
     }
@@ -1249,6 +1247,7 @@ class PostgreModel {
       return false;
     }
 
+    debug && console.log(`检测数据表 ${this.tableName} 的column...`);
     if (!this._checkFixColumn()) {
       return false;
     }
