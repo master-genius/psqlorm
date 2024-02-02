@@ -200,4 +200,3 @@ Object.defineProperty(makeId, 'serialId', {
 })
 
 module.exports = makeId;
-

@@ -207,10 +207,10 @@ class ${name} extends PostgreModel {
 
     this.columns = Object.keys(this.table.column)
 
-    // 以下是示例代码，初始化需要的模型
+    /****** 以下是示例代码，初始化需要的模型 *******/
     // let User = require('./users.js')
     // this.users = new User(this.orm)
-    // 如果不传递参数，则会使用默认的值，将会查找原型上是否存在__pqorm__属性。
+    /**如果不传递参数，则会使用默认的值，将会查找原型上是否存在__pqorm__属性。**/
     // let Admin = require('./admin.js')
     // this.admin = new Admin()
   }
@@ -271,7 +271,11 @@ try {
 let cpath
 let table_dir
 for (let c of mlist) {
-
+  if (c.indexOf('/') >= 0) {
+    let arr = c.split('/').filter(p => p.length > 0)
+    c = arr[arr.length - 1]
+  }
+  
   if (!checkName(c)) {
     console.error(`${c} 不符合命名要求。(the name is illegal.)\n`
       + `要求至少2个字符，最多60字符，字母开头，支持：字母 数字 和 _`)
