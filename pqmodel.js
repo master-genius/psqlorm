@@ -5,7 +5,7 @@ const randstring = require('./randstring.js');
 const makeTimestamp = require('./makeTimestamp.js')
 
 let forbidColumnName = [
-  'like', 'ilike'
+  'like', 'ilike', 'column'
 ];
 
 let make_timestamp_func = (typ) => {
@@ -1199,15 +1199,16 @@ class PostgreModel {
     let col = '';
     let illegal_count = 0;
     let cobj;
+    let col_preg = /^[a-z][a-z0-9\_]{1,}$/i;
 
     for (let k in this.table.column) {
       col = k.toLowerCase()
-      if (forbidColumnName.indexOf(col) >= 0) {
+      /* if (forbidColumnName.indexOf(col) >= 0) {
         console.error(`\x1b[2;31;47m!!!${this.tableName} column ${k} 命名和sql关键字冲突，请修改。\x1b[0m`);
         process.exit(1);
         illegal_count++;
         continue;
-      }
+      } */
 
       if (col !== k) {
         setTimeout(() => {
@@ -1217,15 +1218,25 @@ class PostgreModel {
         continue;
       }
 
+      if (!col_preg.test(k)) {
+        console.error(`\x1b[2;31;47m!! column ${k} 不符合要求，支持字母数字下划线，并且字母开头。\x1b[0m`);
+        process.exit(1);
+      }
+
       cobj = this.table.column[k];
       if (!cobj.type && !cobj.ref) {
         console.error(`\x1b[2;31;47m!! column ${col} 没有设置type指定类型，也没有使用ref指定外键关联，请检查。\x1b[0m`);
         process.exit(1);
-        illegal_count++;
       }
     }
 
     return illegal_count > 0 ? false : true;
+  }
+
+  fmtColName(col) {
+    if (forbidColumnName.indexOf(col) >= 0) return `"${col}"`;
+
+    return col;
   }
 
   /**
@@ -1326,9 +1337,9 @@ class PostgreModel {
         }
 
         if (this.primaryKey === k) {
-          sql += `${k} ${this.table.column[k].type} primary key,`;
+          sql += `${this.fmtColName(k)} ${this.table.column[k].type} primary key,`;
         } else {
-          sql += `${k} ${this.table.column[k].type} `;
+          sql += `${this.fmtColName(k)} ${this.table.column[k].type} `;
           tmp = this.table.column[k];
           if (tmp.notNull !== false) {
             sql += `not null `;
@@ -1468,7 +1479,7 @@ class PostgreModel {
 
       if (col.drop) {
         try {
-          sql = `alter table ${curTableName} drop column if exists ${k}`;
+          sql = `alter table ${curTableName} drop column if exists ${this.fmtColName(k)}`;
           await this.db.query(sql);
         } catch (err) {
         }
@@ -1477,7 +1488,7 @@ class PostgreModel {
 
       if (col.oldName && typeof col.oldName === 'string' && col.oldName.trim()) {
         if (inf[k] === undefined && inf[col.oldName.trim()]) {
-          await this.db.query(`alter table ${curTableName} rename ${col.oldName} to ${k}`);
+          await this.db.query(`alter table ${curTableName} rename ${this.fmtColName(col.oldName)} to ${this.fmtColName(k)}`);
           //保证后续的检测不会错误的创建字段。
           inf[k] = inf[col.oldName.trim()];
           //执行重命名之后，在强制更新模式，检测inf字段，oldName已经不在this.table.column中。
@@ -1489,7 +1500,7 @@ class PostgreModel {
       real_type = this._realType(pt);
 
       if (inf[k] === undefined) {
-        sql = `alter table ${curTableName} add ${k} ${col.type}`;
+        sql = `alter table ${curTableName} add column ${this.fmtColName(k)} ${col.type}`;
         if (col.notNull !== false) {
           sql += ` not null`;
         }
@@ -1512,9 +1523,7 @@ class PostgreModel {
           }
         }
 
-        if (debug) {
-          console.log(sql);
-        }
+        debug && console.log(sql);
         await this.db.query(sql);
         continue;
       }
@@ -1535,17 +1544,17 @@ class PostgreModel {
          * 但是目前测试varchar转换任何其他非字符串类型都会出问题，根本就不支持，其using语法并不能解决问题。
         */
 
-        sql = `alter table ${curTableName} alter ${k} type ${col.type}`;
+        sql = `alter table ${curTableName} alter column ${this.fmtColName(k)} type ${col.type}`;
 
         if (inf[k].data_type === 'text' || inf[k].data_type.indexOf('character') >= 0) {
           if (this.strings.indexOf(this._parseType(col.type)) < 0) {
             //sql += ` using ${k}::${col.type}`;
             if (col.force) {
               //强制更新，先创建临时表名，然后drop，最后改名。
-              sql = `alter table ${curTableName} drop column ${k}`;
+              sql = `alter table ${curTableName} drop column ${this.fmtColName(k)}`;
               await this.db.query(sql);
               
-              sql = `alter table ${curTableName} add ${k} ${col.type}`;
+              sql = `alter table ${curTableName} add column ${this.fmtColName(k)} ${col.type}`;
               if (col.notNull !== false) {
                 sql += ' not null';
               }
@@ -1586,14 +1595,14 @@ class PostgreModel {
 
         if (real_default !== inf[k].column_default) {
           let default_value = col.default === null ? 'null' : `$_${qtag}_$${col.default}$_${qtag}_$`;
-          sql = `alter table ${curTableName} alter column ${k} set default ${default_value}`;
+          sql = `alter table ${curTableName} alter column ${this.fmtColName(k)} set default ${default_value}`;
           await this.db.query(sql);
         }
       }
 
       if (col.notNull === undefined || col.notNull) {
         if (inf[k].is_nullable === 'YES') {
-          await this.db.query(`alter table ${curTableName} alter column ${k} set not null`);
+          await this.db.query(`alter table ${curTableName} alter column ${this.fmtColName(k)} set not null`);
         }
       } else {
         if (inf[k].is_nullable === 'NO') {
@@ -1606,7 +1615,7 @@ class PostgreModel {
     if (dropNotExistCol) {
       for (let k in inf) {
         if (!this.table.column[k] && !renameTable[k]) {
-          await this.db.query(`alter table ${curTableName} drop column ${k}`);
+          await this.db.query(`alter table ${curTableName} drop column ${this.fmtColName(k)}`);
         }
       }
 
@@ -1826,7 +1835,7 @@ class PostgreModel {
         }
       }
       
-      await this.db.query(`create index on ${curTableName} ${ind_using}(${indchk})`);
+      await this.db.query(`create index on ${curTableName} ${ind_using}(${this.fmtColName(indchk)})`);
     }
 
   }
@@ -1870,7 +1879,7 @@ class PostgreModel {
         continue;
       }
 
-      await this.db.query(`create unique index on ${curTableName} (${indchk})`);
+      await this.db.query(`create unique index on ${curTableName} (${this.fmtColName(indchk)})`);
     }
 
   }
