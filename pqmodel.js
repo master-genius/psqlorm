@@ -369,11 +369,21 @@ class PostgreModel {
   }
 
   /**
+   * @param {string|object|boolean|number} icond 前置条件，为真则后续的条件才会生效
+   * @param {(string|object)} cond 条件，如果是字符串，args表示字符串中?要替换的参数
+   * @param {array} args 
+   */
+  whereIf(icond, cond, args=[]) {
+    if (icond) return this.where(cond, args);
+    return this;
+  }
+
+  /**
    * 
    * @param {(string|object)} cond 条件，如果是字符串，args表示字符串中?要替换的参数
    * @param {array} args 
    */
-  where(cond, args = []) {
+  where(cond, args=[]) {
     return this.model().where(cond, args);
   }
 
@@ -634,7 +644,7 @@ class PostgreModel {
     return this._mschema(options.schema).where(cond).count(col);
   }
 
-  _fmtNum (m, options) {
+  _fmtNum(m, options) {
     let col = this.table.column[options.field];
 
     if (!options.to && col && col.to) {
@@ -666,7 +676,7 @@ class PostgreModel {
     return m;
   }
 
-  throwNoFieldsError (options) {
+  throwNoFieldsError(options) {
     if (!options.field) throw new Error('!!必须指定fileds。');
     if (this.table.column[options.field] === undefined)
       throw new Error(`！！没有column：${options.field}.`);
@@ -680,7 +690,7 @@ class PostgreModel {
    *  - field {string} 聚合操作的列。
    * @returns Promise
    */
-  async max (cond = {}, options = {schema: null}) {
+  async max(cond = {}, options = {schema: null}) {
     if (!options) options = {};
 
     if (typeof cond === 'string') {
@@ -707,7 +717,7 @@ class PostgreModel {
    *  - field {string} 聚合操作的列。
    * @returns object
    */
-  async min (cond = {}, options = {schema: null}) {
+  async min(cond = {}, options = {schema: null}) {
     if (!options) options = {};
 
     if (typeof cond === 'string') {
@@ -733,7 +743,7 @@ class PostgreModel {
    *  - field {string} 聚合操作的列。
    * @returns Promise
    */
-  async avg (cond = {}, options = {schema: null}) {
+  async avg(cond = {}, options = {schema: null}) {
     if (!options) options = {};
 
     if (typeof cond === 'string') {
@@ -758,7 +768,7 @@ class PostgreModel {
    *  - field {string} 聚合操作的列。
    * @returns Promise
    */
-  async sum (cond = {}, options = {schema: null}) {
+  async sum(cond = {}, options = {schema: null}) {
     if (!options) options = {};
 
     if (typeof cond === 'string') {
@@ -776,19 +786,23 @@ class PostgreModel {
     return this._fmtNum(m, options);
   }
 
-  quote (a) {
+  quote(a) {
     return this.orm.model().quote(a);
   }
 
   logSql(callback) {
-    return this.orm.model().logSql(callback);
+    return this.model().logSql(callback);
+  }
+
+  fetchSql(b=true) {
+    return this.model().fetchSql(b);
   }
 
   order(by, type = '') {
     return this.model().order(by, type);
   }
 
-  _checkFields (fields, options = {}) {
+  _checkFields(fields, options = {}) {
     if (!fields || !Array.isArray(fields)) return {ok: false, errcode: 'TYPE_WRONG'};
 
     let notin = [];
@@ -814,7 +828,7 @@ class PostgreModel {
    *  - offset {number} 偏移量。
    * @returns function*
    * */
-  async dataOut (options = {}) {
+  async dataOut(options = {}) {
     let cond = options.where || {};
     let total = await this.count(cond);
     let pagesize = 1000;
@@ -885,7 +899,7 @@ class PostgreModel {
    * @param callback {function} - 接受参数为导出的数据数组。
    * @param options {object} - 和dataOut方法的选项一致。
    */
-  async dataOutHandle (callback, options = {}) {
+  async dataOutHandle(callback, options = {}) {
     if (!options || typeof options !== 'object') options = {}
 
     if (!callback || typeof callback !== 'function')
@@ -913,7 +927,7 @@ class PostgreModel {
    *  - schema {string} 导入数据库的schema。
    * @returns Promise
    */
-  async dataIn (options = {}) {
+  async dataIn(options = {}) {
     if (!options.data || !Array.isArray(options.data) ) {
       throw new Error('数据格式错误，请通过选项data传递要导入的数据，数据格式为数组。');
     }
@@ -1432,7 +1446,7 @@ class PostgreModel {
    * @param {boolean} quiet 默认为true，不抛出错误，而是删除不存在的列，为false检测到不存在的列会抛出错误。
    * @returns this
    */
-  check (data, quiet = true) {
+  check(data, quiet = true) {
     let cols = this.table.column;
     for (let k in data) {
       if (cols[k] === undefined) {
@@ -1457,7 +1471,7 @@ class PostgreModel {
      * 
      *    typeLock 为true表示不进行类型更新。
      */
-  async _syncColumn (inf, curTableName, debug = false, force = false, dropNotExistCol = false) {
+  async _syncColumn(inf, curTableName, debug = false, force = false, dropNotExistCol = false) {
     let qtag = randstring(12);
     let pt = '';
     let real_type = '';

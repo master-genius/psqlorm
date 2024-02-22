@@ -300,6 +300,11 @@ class Model {
     return this.stag + a + this.stag;
   }
 
+  whereIf(icond, cond, args=[]) {
+    if (icond) return this.where(cond, args);
+    return this;
+  }
+
   /**
    * 
    * @param {string | object} cond 条件，如果是字符串，args表示字符串中?要替换的参数
@@ -704,6 +709,7 @@ class Model {
 
   async count(count_column = '*') {
     let r = await this.get(`count(${count_column}) as total`);
+    if (this.__fetch_sql__) return r;
     return parseInt(r.total);
   }
 
@@ -726,6 +732,7 @@ class Model {
 
   async avg(field, to = '', prec = 1) {
     let r = await this.get(`avg(${field}) as average`);
+    if (this.__fetch_sql__) return r;
     if (to) return this.toValue(r.average, to, prec);
 
     return r.average;
@@ -733,18 +740,21 @@ class Model {
 
   async max(field, to = '', prec = 1) {
     let r = await this.get(`max(${field}) as m`);
+    if (this.__fetch_sql__) return r;
     if (to) return this.toValue(r.m, to, prec);
     return r.m;
   }
 
   async min(field, to = '', prec = 1) {
     let r = await this.get(`min(${field}) as m`);
+    if (this.__fetch_sql__) return r;
     if (to) return this.toValue(r.m, to, prec);
     return r.m;
   }
 
   async sum(field, to = '', prec = 1) {
     let r = await this.get(`sum(${field}) as sum_value`);
+    if (this.__fetch_sql__) return r;
     if (to) return this.toValue(r.sum_value, to, prec);
     return r.sum_value;
   }
