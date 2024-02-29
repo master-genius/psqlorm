@@ -233,7 +233,8 @@ class PostgreModel {
     if (!this.orm.__register__[this.tableName]) {
       this.orm.__register__[this.tableName] = this;
       try {
-        let cname = this.constructor.name;
+        let cname = __filename.substring(__dirname.length, __filename.length-3)
+                              .replaceAll('/', '');
         if (cname) {
           let kname = 'Model::' + cname.toLowerCase();
           this.orm.__register__[kname] = this;
@@ -293,7 +294,9 @@ class PostgreModel {
     }
 
     if (this.init && typeof this.init === 'function') {
-      this.init()
+      queueMicrotask(() => {
+        this.init()
+      })
     }
   }
 
