@@ -232,6 +232,13 @@ class PostgreModel {
 
     if (!this.orm.__register__[this.tableName]) {
       this.orm.__register__[this.tableName] = this;
+      try {
+        let cname = this.constructor.name;
+        if (cname) {
+          let kname = 'Model::' + cname.toLowerCase();
+          this.orm.__register__[kname] = this;
+        }
+      } catch (err){}
     }
 
     //把table变成函数对象。
@@ -284,6 +291,23 @@ class PostgreModel {
         ];
       }
     }
+
+    if (this.init && typeof this.init === 'function') {
+      this.init()
+    }
+  }
+
+  /**
+   * 
+   * @param {string} name 
+   * @returns {PostgreModel}
+   */
+  getModel(name) {
+    let m = this.orm.__register__['Model::' + name.toLowerCase()];
+    if (m) return m;
+    m = this.orm.__register__[name];
+    if (m) return m;
+    return null;
   }
 
   initTrigger () {

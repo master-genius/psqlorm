@@ -108,6 +108,11 @@ ${exp} {
 }
 
 let example_code = `
+  //一些在构造函数执行后才可以初始化的操作，写在init函数中。
+  async init() {
+
+  }
+
   //示例：定义update、delete、insert的触发器，触发器在执行sql之后才会执行。
   /*
   triggerInsert (tg) {
@@ -206,13 +211,6 @@ class ${name} extends PostgreModel {
     this.table = table
 
     this.columns = Object.keys(this.table.column)
-
-    /****** 以下是示例代码，初始化需要的模型 *******/
-    // let User = require('./users.js')
-    // this.users = new User(this.orm)
-    /**如果不传递参数，则会使用默认的值，将会查找原型上是否存在__pqorm__属性。**/
-    // let Admin = require('./admin.js')
-    // this.admin = new Admin()
   }
   ${exampleCode}
 }
