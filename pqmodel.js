@@ -1983,32 +1983,13 @@ class PostgreModel {
     let ref_keys = [];
     let sql = '';
     if (all_keys.length > 0) {
-      //如果更改过schema,会关联其他schema的外键，所以需要检测
-      //connamespace=${this.schema_oid} AND
-      sql = `SELECT * FROM pg_constraint WHERE contype='f'`
+      sql = `SELECT * FROM pg_constraint WHERE connamespace=${this.schema_oid} AND contype='f'`
                 + ` AND conname IN (${all_keys.join(',')})`;
       let r = await this.db.query(sql);
       let refs = r.rows;
 
       for (let a of refs) {
-        if (this.schema_oid === a.connamespace) {
-          ref_keys.push(a.conname);
-        } else {
-            /* debug && console.log(`-- 删除更改schema后遗留的外键...`);
-            try {
-              let oth = await this.db.query(
-                                      `select * from pg_namespace WHERE oid = ${a.connamespace}`
-                                    );
-              if (oth.rows.length > 0) {
-                let o = oth.rows[0];
-                let sql = `alter table ${o.nspname}.${this.tableName} drop constraint ${a.conname}`;
-                debug && console.log(sql);
-                await this.db.query(sql);
-              }
-            } catch (err) {
-              debug && console.error(err)
-            } */
-        }
+        ref_keys.push(a.conname);
       }
     }
 
