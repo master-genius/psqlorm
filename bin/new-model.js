@@ -38,12 +38,10 @@ return `${ust}
  * 如果指定ref，type会保持和外键引用的字段一致。
  */
 
-//在column中编辑列属性。
 /**
  * dataTypes对常用的类型提供了一个中间层：
- *  它的主要目的不是为了提供方便，
- *  而是提供一个统一的格式并尽可能防止出错。
- *  尽可能避免大小写不一致、前后有空格等问题。
+ *  它的主要目的不是为了提供方便，而是提供一个统一的格式并尽可能防止出错：
+ *      尽可能避免大小写不一致、前后有空格等问题。
  *  STRING() CHAR() NUMBER() ARRAY() 是函数类型，其他如TEXT、INT、BIGINT等是普通属性值。
  */
 
@@ -108,11 +106,6 @@ ${exp} {
 }
 
 let example_code = `
-  //一些在构造函数执行后才可以初始化的操作，写在init函数中。
-  async init() {
-
-  }
-
   //示例：定义update、delete、insert的触发器，触发器在执行sql之后才会执行。
   /*
   triggerInsert (tg) {
@@ -162,7 +155,7 @@ let example_code = `
               db.table('users').where({role: 'test'}).update(data)
         */
         /*
-        let users = this.Users.bind(db)
+        let users = this.getModel('users').bind(db)
         await users.where({role: 'test'}).update(data)
         */
         
@@ -212,6 +205,12 @@ class ${name} extends PostgreModel {
 
     this.columns = Object.keys(this.table.column)
   }
+
+  //一些在构造函数执行后才可以初始化的操作，写在init函数中。
+  async init() {
+
+  }
+
   ${exampleCode}
 }
 
