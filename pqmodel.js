@@ -232,11 +232,16 @@ class PostgreModel {
 
     if (!this.orm.__register__[this.tableName]) {
       this.orm.__register__[this.tableName] = this;
+      let constructor_name = this.constructor.name.toLowerCase();
+      this.orm.__register__['Model::' + constructor_name] = this;
       try {
         let cname = __filename.substring(__dirname.length, __filename.length-3)
-                              .replaceAll('/', '');
-        if (cname) {
-          let kname = 'Model::' + cname.toLowerCase();
+                              .replaceAll('/', '')
+                              .toLowerCase();
+        
+        //同一个文件中直接导入模块并继承PostgreModel会把pqmodel.js作为文件映射。
+        if (cname !== constructor_name) {
+          let kname = 'Model::' + cname;
           this.orm.__register__[kname] = this;
         }
       } catch (err){}
@@ -307,10 +312,16 @@ class PostgreModel {
    */
   getModel(name) {
     let m = this.orm.__register__['Model::' + name.toLowerCase()];
-    if (m) return m;
-    m = this.orm.__register__[name];
-    if (m) return m;
-    return null;
+    if (!m) m = this.orm.__register__[name];
+    if (!m) return null;
+
+    //因为Node.js的事件循环机制，不会有冲突发生，不必考虑锁问题。
+    //在事物操作中调用，会返回经过绑定处理的PostgreModel实例。
+    if (this.__bind_model__) {
+      return m.getPool(this.__bind_model__);
+    }
+
+    return m;
   }
 
   initTrigger () {
