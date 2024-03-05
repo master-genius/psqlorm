@@ -233,18 +233,10 @@ class PostgreModel {
     if (!this.orm.__register__[this.tableName]) {
       this.orm.__register__[this.tableName] = this;
       let constructor_name = this.constructor.name.toLowerCase();
-      this.orm.__register__['Model::' + constructor_name] = this;
-      try {
-        let cname = __filename.substring(__dirname.length, __filename.length-3)
-                              .replaceAll('/', '')
-                              .toLowerCase();
-        
-        //同一个文件中直接导入模块并继承PostgreModel会把pqmodel.js作为文件映射。
-        if (cname !== constructor_name) {
-          let kname = 'Model::' + cname;
-          this.orm.__register__[kname] = this;
-        }
-      } catch (err){}
+      let kname = 'Model::' + constructor_name;
+      if (constructor_name && !this.orm.__register__[kname]) {
+        this.orm.__register__[kname] = this;
+      }
     }
 
     //把table变成函数对象。
@@ -265,8 +257,8 @@ class PostgreModel {
     if (typeof this.primaryKey === 'string') {
       let pktype = this.table.column[this.primaryKey].type;
       if (pktype && pktype.trim().toLowerCase() === 'bigint') {
-        this._makeId = makeId.bigId
-        this.__pkey_type__ = 'b'
+        this._makeId = makeId.bigId;
+        this.__pkey_type__ = 'b';
       }
     }
 
@@ -305,6 +297,16 @@ class PostgreModel {
     }
   }
 
+  hasModel(name) {
+    let m = this.orm.__register__['Model::' + name.toLowerCase()];
+    if (m) return 'constructor';
+    
+    m = this.orm.__register__[name];
+    if (m) return 'table';
+
+    return null;
+  }
+
   /**
    * 
    * @param {string} name 
@@ -313,7 +315,9 @@ class PostgreModel {
   getModel(name) {
     let m = this.orm.__register__['Model::' + name.toLowerCase()];
     if (!m) m = this.orm.__register__[name];
-    if (!m) return null;
+    if (!m) {
+      throw new Error(`获取Model失败：${name}！未找到Model实例。`);
+    }
 
     //因为Node.js的事件循环机制，不会有冲突发生，不必考虑锁问题。
     //在事物操作中调用，会返回经过绑定处理的PostgreModel实例。
