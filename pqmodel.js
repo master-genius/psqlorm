@@ -309,7 +309,7 @@ class PostgreModel {
 
   /**
    * 
-   * @param {string} name 
+   * @param {string} name 构造函数的名字或数据库表的名字。
    * @returns {PostgreModel}
    */
   getModel(name) {
@@ -347,6 +347,11 @@ class PostgreModel {
     return this.model().timestamp(tobj)
   }
 
+  /**
+   * 
+   * @param {string} tname 数据库表的名字
+   * @returns {Model}
+   */
   model(tname='') {
     if (tname && this.tableName !== tname && this.orm.__register__[tname]) {
       let pm = this.orm.__register__[tname].model();
