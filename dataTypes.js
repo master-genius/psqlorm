@@ -11,7 +11,7 @@ let types = {
       return `numeric(${l},${p})`
     }
 
-    return `numeric(7,2)`
+    return `numeric(9,2)`
   },
   
   CHAR: (len=100) => {
@@ -38,9 +38,12 @@ let types = {
   BLOB: 'bytea',
   JSONB: 'jsonb',
   ID: 'varchar(16)',
-  OPENID: 'varchar(40)'
+  OPENID: 'varchar(32)',
+  UID: 'varchar(18)',
+  BID: 'bigint'
 }
 
 types.DECIMAL = types.NUMBER
+types.NUMERIC = types.NUMBER
 
 module.exports = types

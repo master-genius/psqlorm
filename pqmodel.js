@@ -290,6 +290,20 @@ class PostgreModel {
       }
     }
 
+    Object.defineProperty(this, '__model_proxy__', {
+      enumerable: false,
+      configurable: false,
+      writable: false,
+      value: new Proxy({}, {
+        get: (obj, x) => {
+          throw new Error(`错误所在Model [${this.constructor.name}]: \n获取其他模型不存在，因此无法访问${x}。`)
+        },
+        set: (obj, k, v) => {
+          throw new Error(`错误所在Model [${this.constructor.name}]: \n获取模型不存在，因此无法设置属性：${k}。`)
+        }
+      })
+    });
+
     if (this.init && typeof this.init === 'function') {
       queueMicrotask(() => {
         this.init()
@@ -316,7 +330,7 @@ class PostgreModel {
     let m = this.orm.__register__['Model::' + name.toLowerCase()];
     if (!m) m = this.orm.__register__[name];
     if (!m) {
-      throw new Error(`获取Model失败：${name}！未找到Model实例。`);
+      return this.__model_proxy__;
     }
 
     //因为Node.js的事件循环机制，不会有冲突发生，不必考虑锁问题。
