@@ -29,7 +29,13 @@ let make_timestamp_func = (typ) => {
 
 class PostgreModel {
 
-  constructor (pqorm = null, init = true) {
+  constructor (pqorm = null) {
+    let init = true;
+    if (Array.isArray(pqorm)) {
+      init = pqorm[1] === undefined ? true : !!pqorm[1];
+      pqorm = pqorm[0];
+    }
+
     if (!pqorm) {
       //开发者应该在原型上提供此函数。
       if (this.getORM && typeof this.getORM === 'function') {
@@ -311,12 +317,17 @@ class PostgreModel {
     }
   }
 
+  /**
+   * 
+   * @param {string} name 
+   * @returns {string|null} 'c' 表示constructor，'t'表示table，null是没有此模型。
+   */
   hasModel(name) {
     let m = this.orm.__register__['Model::' + name.toLowerCase()];
-    if (m) return 'constructor';
+    if (m) return 'c';
     
     m = this.orm.__register__[name];
-    if (m) return 'table';
+    if (m) return 't';
 
     return null;
   }
@@ -390,7 +401,7 @@ class PostgreModel {
   }
 
   newForTransaction(db) {
-    let m = new this.constructor(this.orm, false)
+    let m = new this.constructor([this.orm, false])
     //model函数会检测此项并自动绑定
     m.__bind_model__ = db
     m.__pool__ = []
