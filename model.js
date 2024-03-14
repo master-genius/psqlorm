@@ -710,7 +710,7 @@ class Model {
   async count(count_column = '*') {
     let r = await this.get(`count(${count_column}) as total`);
     if (this.__fetch_sql__) return r;
-    return parseInt(r.total);
+    return r === null ? 0 : parseInt(r.total);
   }
 
   toValue(val, type, prec = 0) {
@@ -733,6 +733,9 @@ class Model {
   async avg(field, to = '', prec = 1) {
     let r = await this.get(`avg(${field}) as average`);
     if (this.__fetch_sql__) return r;
+
+    if (r === null) return null;
+
     if (to) return this.toValue(r.average, to, prec);
 
     return r.average;
@@ -741,6 +744,8 @@ class Model {
   async max(field, to = '', prec = 1) {
     let r = await this.get(`max(${field}) as m`);
     if (this.__fetch_sql__) return r;
+    if (r === null) return null;
+
     if (to) return this.toValue(r.m, to, prec);
     return r.m;
   }
@@ -748,6 +753,7 @@ class Model {
   async min(field, to = '', prec = 1) {
     let r = await this.get(`min(${field}) as m`);
     if (this.__fetch_sql__) return r;
+    if (r === null) return null;
     if (to) return this.toValue(r.m, to, prec);
     return r.m;
   }
@@ -755,6 +761,7 @@ class Model {
   async sum(field, to = '', prec = 1) {
     let r = await this.get(`sum(${field}) as sum_value`);
     if (this.__fetch_sql__) return r;
+    if (r === null) return null;
     if (to) return this.toValue(r.sum_value, to, prec);
     return r.sum_value;
   }
