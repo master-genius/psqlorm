@@ -1189,6 +1189,13 @@ class PostgreModel {
     ret.fieldWrong = notin;
     return ret;
   }
+  
+  /**
+   * @param {string} gby
+   * */
+  group(gby) {
+    return this.model().group(gby);
+  }
 
   /**
    * 
@@ -1198,10 +1205,10 @@ class PostgreModel {
    *  - order string类型，排序方式。
    *  - where 条件，使用object类型，参考where接口。
    */
-  async group (gby, options = {}) {
+  async groupSelect(gby, options={}) {
     let t = this.model().where(options.where || {}).group(gby);
 
-    if (options.order) t = t.order(options.order);
+    options.order && (t = t.order(options.order));
 
     return await t.select(options.field || gby);
   }
