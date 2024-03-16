@@ -567,6 +567,9 @@ class Model {
           break;
 
         case commandTable.INSERTS:
+          rdata = r.rows.length > 0 ? r.rows : r.rowCount;
+          break;
+
         case commandTable.DELETE:
         case commandTable.UPDATE:
           if (r.rows.length > 0) {
@@ -574,6 +577,7 @@ class Model {
           } else {
             rdata = r.rowCount;
           }
+          break;
       }
 
       if ((is_trigger || is_trigger_m) && this.tableTrigger) {
