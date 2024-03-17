@@ -1935,7 +1935,6 @@ class PostgreModel {
   }
 
   async _syncUnique(curTableName, debug = false) {
-
     if (this.table.unique === undefined) {
       return;
     }
@@ -2017,7 +2016,7 @@ class PostgreModel {
 
   }
 
-  async _syncReferences (curTableName, debug = false) {
+  async _syncReferences(curTableName, debug = false) {
     let tmp_col;
     let refs_now_list = [];
     let all_keys = [];
@@ -2074,7 +2073,7 @@ class PostgreModel {
 
   }
 
-  _compareType (f, col, real_type) {
+  _compareType(f, col, real_type) {
     if (this.typeWithBrackets.indexOf(real_type) < 0) {
       return (f.data_type === real_type);
     }
@@ -2090,7 +2089,7 @@ class PostgreModel {
     return (`${f.data_type}(${f.numeric_precision},${f.numeric_scale})` === `${real_type}${btstr}`);
   }
 
-  _parseType (t) {
+  _parseType(t) {
     let br = t.indexOf('(');
     if (br > 0) {
       return t.substring(0,br).trim().toLowerCase();
@@ -2104,7 +2103,7 @@ class PostgreModel {
     return t.trim().toLowerCase();
   }
 
-  _parseBrackets (t) {
+  _parseBrackets(t) {
     let ind = t.indexOf('(');
     if (ind < 0) {
       return '';
@@ -2112,16 +2111,16 @@ class PostgreModel {
     return t.substring(ind).trim();
   }
 
-  _realType (t) {
+  _realType(t) {
     return this.dataTypeMap[t] || null;
   }
 
-  _isArray (t) {
+  _isArray(t) {
     if (t.indexOf('[') > 0) return true;
     return false;
   }
 
-  _realDefault (t, val) {
+  _realDefault(t, val) {
     if (t === 'boolean') {
       return (val === 't' ? 'true' : 'false');
     }
@@ -2135,7 +2134,7 @@ class PostgreModel {
   }
 
   //refstr model:column
-  _parseRef (refstr, curColumn) {
+  _parseRef(refstr, curColumn) {
     if (refstr.indexOf(':') > 0) {
       let i = refstr.length - 1;
       while (i > 0) {

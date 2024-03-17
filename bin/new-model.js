@@ -60,7 +60,6 @@ ${exp} {
      * @type {column}
      * */
     name: {
-      //等效于 'varchar(30)'
       type : dataTypes.STRING(30),
       default: ''
     },
@@ -97,9 +96,10 @@ ${exp} {
     'update_time'
   ],
 
-  //唯一索引
+  //唯一索引，注意：主键本身就是唯一索引，不必在此重复。
+  //联合唯一索引使用 , 分隔，示例：'name,orgid'
   unique: [
-    'name'
+
   ]
 }
 `
