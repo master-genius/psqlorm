@@ -39,10 +39,30 @@ return `${ust}
  */
 
 /**
+ * @typeof {object} dataTypes
+ * @property {string} INT - 'int'
+ * @property {string} BIGINT - 'bigint'
+ * @property {string} SMALLINT - 'smallint'
+ * @property {string} TEXT - 'text'
+ * @property {string} JSONB - 'jsonb'
+ * @property {string} TIME - 'time'
+ * @property {string} DATE - 'date'
+ * @property {string} TIMESTAMP - 'timestamp'
+ * @property {string} TIMESTAMPZ - 'timestamp with zone'
+ * @property {string} BOOLEAN - 'boolean'
+ * @property {string} BYTE - 'bytea'
+ * @property {string} BIGINT - 'bigint'
+ * @property {string} ID - 'varchar(16)'
+ * @property {string} UID - 'varchar(18)'
+ * @property {string} OPENID - 'varchar(32)'
+ * @property {function} CHAR - CHAR(50) 返回 'char(50)'
+ * @property {function} STRING - STRING(50) 返回 'varchar(50)'
+ * @property {function} NUMBER - NUMBER(9,3) 返回 'numeric(9,3)'
+ * @property {function} NUMERIC - NUMERIC(9,3) 返回 'numeric(9,3)'
+ * @property {function} ARRAY - ARRAY('int') 返回 'int[]'
+ *
  * dataTypes对常用的类型提供了一个中间层：
- *  它的主要目的不是为了提供方便，而是提供一个统一的格式并尽可能防止出错：
- *      尽可能避免大小写不一致、前后有空格等问题。
- *  STRING() CHAR() NUMBER() ARRAY() 是函数类型，其他如TEXT、INT、BIGINT等是普通属性值。
+ *  它的主要目的是提供统一格式并尽可能防止出错：尽可能避免大小写不一致、前后有空格等问题。
  */
 
 ${separate ? 'const dataTypes = require(\'psqlorm\').dataTypes\n' : ''}
