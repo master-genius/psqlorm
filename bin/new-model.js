@@ -30,6 +30,7 @@ return `${ust}
  * @property {string} refActionDelete - 外键删除后的行为，可以设置为cascade，具体参考数据库文档。
  * @property {string} refActionUpdate - 外键更新后的行为，可以设置为cascade，具体参考数据库文档。
  * @property {string} ref - 外键引用，格式 ModelName:COLUMN，示例：'users:id'
+ * @property {string} logicRef - 逻辑外键引用，格式 ModelName:COLUMN，示例：'users:id'
  * @property {string|number} default - 默认值。
  * @property {boolean} notNull - 不允许为null，默认为true。
  * @property {string} oldName - 原column名称，如果要重命名字段，需要oldName指定原有名字。
@@ -64,7 +65,6 @@ return `${ust}
  * dataTypes对常用的类型提供了一个中间层：
  *  它的主要目的是提供统一格式并尽可能防止出错：尽可能避免大小写不一致、前后有空格等问题。
  */
-
 ${separate ? 'const dataTypes = require(\'psqlorm\').dataTypes\n' : ''}
 ${exp} {
   column: {
@@ -73,14 +73,14 @@ ${exp} {
      * id默认是主键，不需要再加入到unique索引。
      * */
     id: {
-      type : dataTypes.ID
+      type: dataTypes.ID
     },
 
     /**
      * @type {column}
      * */
     name: {
-      type : dataTypes.STRING(30),
+      type: dataTypes.STRING(30),
       default: ''
     },
 
@@ -93,7 +93,7 @@ ${exp} {
      * @type {column}
      * */
     create_time: {
-      type : dataTypes.BIGINT,
+      type: dataTypes.BIGINT,
       default: 0,
       //执行insert时自动生成时间戳
       timestamp: 'insert'
@@ -103,7 +103,7 @@ ${exp} {
      * @type {column}
      * */
     update_time: {
-      type : dataTypes.BIGINT,
+      type: dataTypes.BIGINT,
       default: 0,
       //执行update时自动生成时间戳
       timestamp: 'update'

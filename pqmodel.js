@@ -230,10 +230,27 @@ class PostgreModel {
     if (this.primaryKey.indexOf(',') > 0) {
       this.primaryKey = this.primaryKey.split(',').filter(p => p.length > 0);
     }
-
+    
     if (Array.isArray(this.primaryKey)) {
       if (this.primaryKey.length === 0) this.primaryKey = 'id';
       else if (this.primaryKey.length === 1) this.primaryKey = this.primaryKey[0];
+    }
+
+    //检测主键是否符合长度要求
+    if (!Array.isArray(this.primaryKey) && this.primaryKey) {
+        let pkey_length = this.idLen + this.idPre.length
+        let pkey = this.table.column[this.primaryKey]
+        if (pkey && pkey.type) {
+            let b_index = pkey.type.indexOf('(')
+            let typename = b_index > 0 ? pkey.type.substring(0, b_index).trim() : ''
+            let p_length = b_index > 0 ? parseInt(pkey.type.substring(b_index+1, pkey.type.length-1).trim()) : 0
+            if (typename && p_length && (typename === 'varchar' || typename === 'char')) {
+              if (pkey_length > p_length) {
+                console.error(`${this.tableName}: 设定的主键长度小于生成ID的长度，已自动调整。`)
+                pkey.type = `${typename}(${pkey_length})`
+              }
+            }
+        }
     }
 
     if (!this.orm.__register__[this.tableName]) {
@@ -1812,11 +1829,9 @@ class PostgreModel {
 
     let tmp = null;
     for (let i = 0; i < indsplit.length; i++) {
-      
       tmp = this.table.column[ indsplit[i] ];
 
       if (tmp === undefined || tmp.drop || tmp.ignore) {
-        
         if (debug) {
           console.error(
             ` \x1b[2;35m-- 忽略 index ${indname} -- 请检查索引相关的column是否存在。\x1b[0m`
