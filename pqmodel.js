@@ -422,7 +422,10 @@ class PostgreModel {
     //model函数会检测此项并自动绑定
     m.__bind_model__ = db
     m.__pool__ = []
-    m.getPool = null
+    //事物函数内部再次调用事物，需要调用getPool方法
+    m.getPool = () => {
+      return m
+    }
     m.freePool = null
     m.__trigger__ = this.__trigger__
     m.__auto_id__ = this.__auto_id__
@@ -1238,7 +1241,7 @@ class PostgreModel {
    * @param schema {string} 
    * @returns 
    */
-  async transaction (callback, schema = '') {
+  async transaction(callback, schema = '') {
     if (typeof callback !== 'function' || callback.constructor.name !== 'AsyncFunction') {
       throw new Error(`transaction 执行的回调函数必须使用 async 声明。`);
     }

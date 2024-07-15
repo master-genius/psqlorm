@@ -1,6 +1,6 @@
 {
   "name": "psqlorm",
-  "version": "9.3.28",
+  "version": "9.3.29",
   "description": "orm for postgresql",
   "main": "main.js",
   "scripts": {
