@@ -290,6 +290,14 @@ class PostgreModel {
     let _timestamp_action = '';
     for (let k in this.table.column) {
       _col = this.table.column[k]
+      if (_col && typeof _col === 'string') {
+        this.table.column[k] = {
+          type: _col
+        }
+
+        _col = this.table.column[k]
+      }
+
       if (!_col || typeof _col !== 'object') {
         console.error(`${this.tableName}: ${k} 未指定为object类型，请修改。`)
         continue
