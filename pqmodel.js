@@ -1367,7 +1367,7 @@ class PostgreModel {
    * @param force {boolean} 
    *   - 是否强制同步，默认为false，若为true则会强制把数据库改为和table结构一致。
    */
-  async sync (debug=false, force=false, dropNotExistCol=false) {
+  async sync(debug=false, force=false, dropNotExistCol=false) {
 
     if (!this.table) {
       console.error('没有table对象');
@@ -1410,9 +1410,22 @@ class PostgreModel {
         refModName = (this.modelPath && (refarr[0].indexOf('/') < 0))
                       ? (this.modelPath + '/' + refarr[0])
                       : refarr[0];
+
         if (refModName.length < 4 || refModName.substring(refModName.length - 3) !== '.js') refModName += '.js';
+        //避免require('xxx.js')这种情况，会寻找node_modules进行导入
+        if (refModName[0] !== '/') refModName = `${process.cwd()}/${refModName}`;
+
         refmodel = require(refModName);
-        refm = new refmodel(this.orm);
+
+        if (refmodel && refmodel.prototype && refmodel.prototype instanceof PostgreModel) {
+          refm = new refmodel(this.orm);
+        } else if (refmodel instanceof PostgreModel) {
+          refm = refmodel;
+        } else {
+          debug && console.error(`${refModName} 不是PostgreModel实例，无法进行同步处理。`);
+          continue;
+        }
+
         await refm.sync(debug, force);
         tmp_col.type = refm.table.column[ refarr[1] ].type;
         //外键暂时不支持跨越schema，尽管postgresql支持，这会导致不可预知的混乱。
