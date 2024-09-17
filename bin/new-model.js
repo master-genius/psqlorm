@@ -30,7 +30,7 @@ return `${ust}
  * @property {string} refActionDelete - 外键删除后的行为，可以设置为cascade，具体参考数据库文档。
  * @property {string} refActionUpdate - 外键更新后的行为，可以设置为cascade，具体参考数据库文档。
  * @property {string} ref - 外键引用，格式 ModelName:COLUMN，示例：'users:id'
- * @property {string} logicRef - 逻辑外键引用，格式 ModelName:COLUMN，示例：'users:id'
+ * @property {string} indexType - 索引类型，需要指定索引具体类型时使用此属性。
  * @property {string|number} default - 默认值。
  * @property {boolean} notNull - 不允许为null，默认为true。
  * @property {string} oldName - 原column名称，如果要重命名字段，需要oldName指定原有名字。
@@ -110,6 +110,9 @@ ${exp} {
       timestamp: 'update'
     },
   },
+
+  //主键，字符串类型会按照增长序列算法自动生成。
+  primaryKey: 'id',
 
   //索引
   index: [
@@ -207,17 +210,11 @@ class ${name} extends PostgreModel {
     //必须存在并且写在最前面。
     super(pqorm)
 
-    //主要用于引用外键时，用于获取当前模块的路径，也可以在外键引用ref属性上指定路径。
-    this.modelPath = __dirname
-
     //主键id前缀，建议不要超过2字符，请确保前缀和idLen的长度 <= 数据库字段的最大长度。
     this.idPre = ''
 
     //id的长度，默认为16，为保证有序增长，建议id长度不要低于16。
     //this.idLen = 16
-
-    //默认主键名为id，并且是字符串类型，主键id会自动生成。
-    //this.primaryKey = 'id'
 
     //数据表真正的名称，注意：postgresql不支持表名大写，更改名称请使用小写字母。
     this.tableName = '${fmt_table_name(name)}'
