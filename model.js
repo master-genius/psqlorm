@@ -623,6 +623,10 @@ class Model {
   }
 
   async insert(data) {
+    if (Array.isArray(data)) {
+      return this.insertAll(data)
+    }
+
     if (this.__auto_id__ 
       && this.__primary_key__ && typeof this.__primary_key__ === 'string' 
       && data[this.__primary_key__] === undefined)

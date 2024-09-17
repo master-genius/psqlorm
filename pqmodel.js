@@ -223,6 +223,13 @@ class PostgreModel {
     if ((/[\s\*\$\@\!\~\%\^\&\(\)\:\.\,\<\>\)\[\]\/\\\|\{\}\=\+]+/).test(this.tableName)) {
       throw new Error(`${this.tableName} 数据表名称不合法，不能包含空白字符和特殊字符，支持字母数字下划线。`);
     }
+    
+    if (this.table.primaryKey 
+      && (typeof this.table.primaryKey === 'string' 
+          || (Array.isArray(this.table.primaryKey) && this.table.primaryKey.length > 0) )
+    ) {
+      this.primaryKey = this.table.primaryKey;
+    }
 
     if (!this.orm.tableTrigger.hasTable(this.tableName))
       this.initTrigger();
@@ -279,9 +286,14 @@ class PostgreModel {
     //判断主键类型并确定生成id的函数。
     if (typeof this.primaryKey === 'string') {
       let pktype = this.table.column[this.primaryKey].type;
-      if (pktype && pktype.trim().toLowerCase() === 'bigint') {
-        this._makeId = makeId.bigId;
-        this.__pkey_type__ = 'b';
+      if (pktype) {
+        let pkt = pktype.trim().toLowerCase();
+        if (pkt === 'bigint') {
+          this._makeId = makeId.bigId;
+          this.__pkey_type__ = 'b';
+        } else if (pkt === 'serial' || pkt === 'bigserial') {
+          this.__auto_id__ = false;
+        }
       }
     }
 
@@ -589,6 +601,10 @@ class PostgreModel {
    * @returns Promise
    */
   async insert(data, options = {schema: null}) {
+    if (Array.isArray(data)) {
+      return this.insertAll(data, options);
+    }
+
     this.__auto_timestamp__.insert && makeTimestamp(data, this.__auto_timestamp__.insert);
     this.__auto_timestamp__.update && makeTimestamp(data, this.__auto_timestamp__.update);
 
