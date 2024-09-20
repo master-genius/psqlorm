@@ -102,6 +102,7 @@ let pm = new TestModel(m);
 
   console.log(r);
 
+  console.log(await m.model('users').fetchSql().autoId().insert({name:'success', role: 'user', tags:'x,y', sex: 1}))
   let dataList = [
     {
       id : '123',

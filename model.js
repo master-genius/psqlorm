@@ -48,7 +48,7 @@ let state = {
 
 class Model {
 
-  constructor (db, tableName = '', schema = 'public', myparent = null, trigger = null) {
+  constructor(db, tableName='', schema='public', myparent=null, trigger=null) {
     this.odb = db;
     this.db = db;
 
@@ -74,6 +74,7 @@ class Model {
     this.__state__ = this.state.USING;
     this.__fetch_sql__ = false;
     this.__log_sql__ = null;
+    this.__validate__ = null;
 
     this.stag = this.makeQuoteTag(5 + parseInt(Math.random() * 5));
     this.lstag = this.stag.substring(0, this.stag.length - 1);
@@ -144,6 +145,7 @@ class Model {
     m.__fetch_sql__ = this.__fetch_sql__;
     
     autoInit && this.init();
+    m.__validate__ = this.__validate__;
 
     return m;
   }
@@ -169,6 +171,7 @@ class Model {
     this.__pkey_type__ = 'v';
     this.__insert_timestamp__ = null;
     this.__update_timestamp__ = null;
+    this.__validate__ = null;
   }
 
   resetIdInfo() {
@@ -542,8 +545,6 @@ class Model {
       } catch (err) {}
     }
 
-    this.init();
-
     try {
       let ename;
 
@@ -595,6 +596,7 @@ class Model {
     } catch (err) {
       throw err;
     } finally {
+      this.init();
       if (!this.__free_lock__) {
         this.__free_lock__ = false;
         this.parent.free(this);
@@ -622,6 +624,23 @@ class Model {
     return this.exec();
   }
 
+  validate(data, throw_error = true) {
+    if (this.__validate__) {
+      for (let k in this.__validate__) {
+        if (data[k] !== undefined) {
+          if (this.__validate__[k](data[k]) === false) {
+            if (throw_error) {
+              throw new Error(`data validate: ${k}, 数据不符合要求`)
+            }
+
+            return {ok: false, column: k}
+          }
+        }
+      }
+    }
+    return true
+  }
+
   async insert(data) {
     if (Array.isArray(data)) {
       return this.insertAll(data)
@@ -646,9 +665,12 @@ class Model {
     this.sqlUnit.command = commandTable.INSERT;
     this.sqlUnit.fields = `(${fields.join(',')})`;
     let vals = [];
-    for (let k in data) {
-      vals.push(`${this.quote(data[k])}`);
+    for (let i = 0; i < fields.length; i++) {
+      vals.push(this.quote(data[ fields[i] ]));
     }
+
+    this.validate(data)
+
     this.sqlUnit.values = `(${vals.join(',')})`;
     return this.exec();
   }
@@ -669,6 +691,7 @@ class Model {
 
         this.__insert_timestamp__ && makeTimestamp(data[i], this.__insert_timestamp__);
         this.__update_timestamp__ && makeTimestamp(data[i], this.__update_timestamp__);
+        this.validate(data[i]);
       }
     }
 
@@ -679,16 +702,18 @@ class Model {
     
     let vals = [];
     let vallist = [];
-
+    let data_item;
     for (let i=0; i < data.length; i++) {
       vals = [];
-      for (let k in data[i]) {
-        vals.push(`${this.quote(data[i][k])}`);
+      data_item = data[i];
+      for (let i = 0; i < fields.length; i++) {
+        vals.push(this.quote(data_item[ fields[i] ]));
       }
+
       vallist.push(`(${vals.join(',')})`);
     }
     
-    this.sqlUnit.values = `${vallist.join(',')}`;
+    this.sqlUnit.values = vallist.join(',');
 
     return this.exec();
   }
@@ -710,8 +735,9 @@ class Model {
         vals.push(`${k}=${this.quote(data[k])}`);
       }
 
-      this.sqlUnit.values = `${vals.join(',')}`;
+      this.sqlUnit.values = vals.join(',');
     }
+
     return this.exec();
   }
 

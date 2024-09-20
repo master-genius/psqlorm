@@ -1,10 +1,10 @@
 'use strict'
 
-const pqmodel = require('./pqmodel');
-const pqorm = require('./pqorm');
+const PostgreModel = require('./pqmodel.js');
+const PsqlORM = require('./pqorm.js');
 
-pqorm.Model = pqmodel;
-pqorm.PostgreModel = pqmodel;
+PsqlORM.Model = PostgreModel;
+PsqlORM.PostgreModel = PostgreModel;
 
-module.exports = pqorm;
+module.exports = PsqlORM;
 

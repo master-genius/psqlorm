@@ -231,8 +231,7 @@ class PostgreModel {
       this.primaryKey = this.table.primaryKey;
     }
 
-    if (!this.orm.tableTrigger.hasTable(this.tableName))
-      this.initTrigger();
+    !this.orm.tableTrigger.hasTable(this.tableName) && this.initTrigger();
 
     if (this.primaryKey.indexOf(',') > 0) {
       this.primaryKey = this.primaryKey.split(',').filter(p => p.length > 0);
@@ -270,9 +269,7 @@ class PostgreModel {
     }
 
     //把table变成函数对象。
-    let _table = (name='') => {
-      return this.model(name);
-    };
+    let _table = (name='') => { return this.model(name); };
 
     for (let k in this.table) {
       _table[k] = this.table[k];
@@ -345,11 +342,31 @@ class PostgreModel {
           throw new Error(`错误所在Model [${this.constructor.name}]: \n获取模型不存在，因此无法设置属性：${k}。`)
         }
       })
-    });
+    })
+
+    Object.defineProperty(this.table, '__validate__', {
+      enumerable: false,
+      configurable: false,
+      writable: false,
+      value: Object.create(null)
+    })
+
+    for (let k in this.table.column) {
+      let col = this.table.column[k]
+      if (col && col.validate) {
+        if (typeof col.validate === 'function') {
+          this.table.__validate__[k] = col.validate.bind(this)
+        } else if (Array.isArray(col.validate)) {
+          this.table.__validate__[k] = (d) => { return col.validate.indexOf(d) >= 0 }
+        } else if (col.validate instanceof RegExp) {
+          this.table.__validate__[k] = (d) => { return !!col.validate.test(d) }
+        }
+      }
+    }
 
     if (this.init && typeof this.init === 'function') {
       queueMicrotask(() => {
-        this.init()
+        try { this.init() } catch (err) { console.error(err) }
       })
     }
   }
@@ -390,7 +407,7 @@ class PostgreModel {
     return m;
   }
 
-  initTrigger () {
+  initTrigger() {
     this.orm.tableTrigger.addTable(this.tableName, this.__trigger__);
     let triggers = [
       //'BeforeUpdate', 'BeforeInsert', 'BeforeDelete',
@@ -427,6 +444,7 @@ class PostgreModel {
     m.__id_pre__ = this.idPre;
     m.__primary_key__ = this.primaryKey;
     m.__pkey_type__ = this.__pkey_type__;
+    m.__validate__ = this.table.__validate__;
 
     if (!tname || this.tableName === tname) {
       this.__auto_timestamp__.insert && (m.__insert_timestamp__ = this.__auto_timestamp__.insert);
@@ -503,7 +521,7 @@ class PostgreModel {
     return this.model().schema(name);
   }
 
-  _mschema(name = null) {
+  _mschema(name=null) {
     let h = this.model();
     return name ? h.schema(name) : h;
   }
@@ -600,7 +618,7 @@ class PostgreModel {
    *  - returning {string} sql语句的returning列。
    * @returns Promise
    */
-  async insert(data, options = {schema: null}) {
+  async insert(data, options={schema: null}) {
     if (Array.isArray(data)) {
       return this.insertAll(data, options);
     }
@@ -629,7 +647,7 @@ class PostgreModel {
    *  - returning {string} sql语句的returning列。
    * @returns Promise
    */
-  async insertAll(data, options = {schema: null}) {
+  async insertAll(data, options={schema: null}) {
     if (!Array.isArray(data)) {
       throw new Error(`data不是数组，无法写入多个条目到数据库。`);
     }
@@ -663,6 +681,10 @@ class PostgreModel {
     return h.insertAll(data);
   }
 
+  async update(data, options={schema:null}) {
+    return this.model().update(data);
+  }
+
   /**
    * 
    * @param cond {object} - 条件
@@ -672,7 +694,7 @@ class PostgreModel {
    *  - returning {string} sql语句的returning列。
    * @returns Promise
    */
-  async update(cond, data, options={schema: null}) {
+  async _update(cond, data, options={schema: null}) {
     this.__auto_timestamp__.update && makeTimestamp(data, this.__auto_timestamp__.update);
     
     let h = this._mschema(options.schema);
@@ -714,6 +736,10 @@ class PostgreModel {
     return t.select(args.field || this.selectField);
   }
 
+  async get(fields='*', options={schema:null}) {
+    return this._mschema(options.schema||'').get(fields);
+  }
+
   /**
    * 
    * @param cond {object} - 条件
@@ -722,7 +748,7 @@ class PostgreModel {
    *  - field {string|array} 返回的列，默认为selectField设置的值。
    * @returns object
    */
-  async get(cond = {}, options = {field: null, schema: null}) {
+  async _get(cond = {}, options = {field: null, schema: null}) {
     return this._mschema(options.schema).where(cond).get(options.field || this.selectField);
   }
 
@@ -734,7 +760,7 @@ class PostgreModel {
    *  - returning {string} sql语句的returning列。
    * @returns Promise
    */
-  async delete(cond, options = {schema: null}) {
+  async _delete(cond, options = {schema: null}) {
     let h = this._mschema(options.schema);
     options.returning && (h = h.returning(options.returning));
 
@@ -748,7 +774,7 @@ class PostgreModel {
    *  - schema {string} 数据库schema。
    * @returns Promise
    */
-  async count(cond = {}, options = {column:'*', schema: null}) {
+  async count(cond={}, options = {column:'*', schema: null}) {
     if (!options) options = {};
 
     if (typeof cond === 'string') {
@@ -1328,7 +1354,7 @@ class PostgreModel {
    * 
    * @param schema {string} - 要创建的schema名称。
    */
-  async createSchema (schema) {
+  async createSchema(schema) {
     return await this.db.query(`create schema if not exists ${schema}`);
   }
 
@@ -1583,14 +1609,28 @@ class PostgreModel {
    * @param {boolean} quiet 默认为true，不抛出错误，而是删除不存在的列，为false检测到不存在的列会抛出错误。
    * @returns this
    */
-  check(data, quiet = true) {
+  check(data, quiet=true) {
     let cols = this.table.column;
-    for (let k in data) {
-      if (cols[k] === undefined) {
-        if (!quiet) {
-          throw new Error(`column ${k} 没有定义。`);
-        } else {
-          delete data[k];
+    if (Array.isArray(data)) {
+      for (let ditem of data) {
+        for (let k in ditem) {
+          if (cols[k] === undefined) {
+            if (!quiet) {
+              throw new Error(`column ${k} 没有定义。`);
+            } else {
+              delete ditem[k];
+            }
+          }
+        }
+      }
+    } else {
+      for (let k in data) {
+        if (cols[k] === undefined) {
+          if (!quiet) {
+            throw new Error(`column ${k} 没有定义。`);
+          } else {
+            delete data[k];
+          }
         }
       }
     }

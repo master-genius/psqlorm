@@ -80,7 +80,7 @@ const pqorm = new psqlorm(pgdb);
  *   max      : 12
  * }
  */
-function initpgorm (dbconfig) {
+function initpgorm(dbconfig) {
   let pdb = new pg.Pool(dbconfig)
   return new psqlorm(pdb)
 }
@@ -433,8 +433,6 @@ let pqorm = initORM(dbconfig);
 
 ```javascript
 
-let pqorm = initORM(dbconfig);
-
 ;(async () => {
 
   let cond = {
@@ -459,8 +457,6 @@ let pqorm = initORM(dbconfig);
 数据库的表大部分情况下都需要两个字段来记录创建时间和更新时间。这意味着在model层面需要指定要对那个字段声明是插入/更新数据的时候自动创建时间戳。
 
 ```javascript
-
-let pqorm = initORM(dbconfig);
 
 ;(async () => {
 
@@ -494,8 +490,6 @@ let pqorm = initORM(dbconfig);
 事务有两种调用方式，一个是直接调用pqorm.transaction，另一个是从pqorm.model().transaction。实际上，第一种是对第二种的封装，不过支持第二个参数设置schema，默认为public。
 
 ``` JavaScript
-
-let pqorm = initORM(dbconfig);
 
 ;(async () => {
 
@@ -674,15 +668,17 @@ pqorm.model('content')
 
 PostgreModel更高一层ORM实现，但是对Postgres的类型支持有限，仅支持常用的类型：
 
-> 数字（int、bigint、smallint、numeric）、字符串（text、char、varchar）、bytea、时间戳、jsonb。
+> 数字（int、bigint、smallint、numeric）、字符串（text、char、varchar）、bytea、时间戳、jsonb、数组。
 
 对于不支持的类型，仍然可以创建并使用，只是在自动更新表结构时，对类型的处理会忽略。
 
-这部分功能是稳定的，只是类型的支持不够全面，psotgresql支持的类型和功能太多了···
+这部分功能是十分稳定的，只是类型的支持不够全面。
+
+它提供了自动化验证处理，自动化同步表结构等功能。
 
 ----
 
-## pqmodel(psqlorm.Model)
+## PostgreModel.prototype 原型方法
 
 对于所有的以上提到的接口，都有同名的实现，只是参数不同：
 
@@ -690,11 +686,9 @@ PostgreModel更高一层ORM实现，但是对Postgres的类型支持有限，仅
 | --- | ---- | ---- |
 | model (schema = null) | 可以指定schema | 返回模型实例 |
 | alias (name) | 字符串 | 表别名 |
-| get (cond, options={schema: null}) | object | 条件 |
-| insert (data, options={schema: null}) | object | 要插入的数据，options支持returning属性设定要返回的列，update和delete操作也支持。 |
-| insertAll (data, options={schema: null}) | Array[object] | 插入的数据数组 |
-| update (cond, data, options={schema: null}) |  | 更新 |
-| delete (cond, options={schema: null}) |  | 删除 |
+| get (fields='*') | string或array | 获取一条数据 |
+| insert (data, options={schema: null}) | object或object数组 | 要插入的数据，options支持returning属性设定要返回的列，update和delete操作也支持。 |
+| update (data) | object | 更新数据 |
 | transaction (callback, schema = null) |  | 事务，和model有所区别，是对model层transaction的封装。callback接受第一个参数是db，第二个参数是一个object，用于设置事务执行状态和设定返回的数据。 |
 | innerJoin(m, on) | m可以是字符串表示表名也可以是另一个模型实例 | |
 | leftJoin(m, on) | on是join条件 |  |
@@ -766,50 +760,56 @@ object类型，描述表的字段，示例：
 
 ```
 this.table = {
-  column : {
-    id : {
-      type : 'varchar(16)'
+  column: {
+    id: {
+      type: 'varchar(16)'
     },
 
-    username : {
-      type : 'varchar(40)'
+    username: {
+      type: 'varchar(40)'
     },
 
-    passwd : {
-      type : 'varchar(200)',
+    passwd: {
+      type: 'varchar(200)',
     },
 
-    role : {
-      type : 'varchar(12)'
-      default : 'user'
+    role: {
+      type: 'varchar(12)'
+      default: 'user',
+      //验证数据
+      validate: (d) => {
+        if (['user', 'admin'].indexOf(d) < 0) return false
+      }
     },
 
-    mobile : {
-      type : 'varchar(14)',
-      default : ''
+    mobile: {
+      type: 'varchar(14)',
+      default: ''
     },
 
-    mobile_verify : {
-      type : 'boolean',
-      default : 'f'
+    mobile_verify: {
+      type: 'boolean',
+      default: 'f'
     }
 
-    age : {
-      type : 'smallint',
-      default : 0
+    age: {
+      type: 'smallint',
+      default: 0
     }
   },
 
   //要创建索引的字段
-  index : [
+  index: [
     'role',
     'mobile'
   ],
 
   //唯一索引
-  unique : [
+  unique: [
     'username'
-  ]
+  ],
+
+  primaryKey: 'id'
 
 }
 ```
@@ -852,7 +852,7 @@ object类型，用于指定表结构，从v8.3.0开始，table是一个函数对
 
 const PostgreModel = require('psqlorm').Model;
 
-class dataTest extends PostgreModel {
+class DataTest extends PostgreModel {
 
   constructor(pqorm) {
     
@@ -864,9 +864,6 @@ class dataTest extends PostgreModel {
 
     //主键id前缀，建议不要超过2字符，或者要把主键id字符长度上限设置为24+
     this.idPre = '';
-    
-    //默认主键名为id，并且是字符串类型，默认禁止使用自增序列，如果确实需要使用，请调整你的想法或需求
-    //this.primaryKey = 'id';
 
     //需要替换成数据表真正的名称
 
@@ -904,7 +901,9 @@ class dataTest extends PostgreModel {
       ],
       unique : [
         'data_id,user_id'
-      ]
+      ],
+
+      primaryKey: 'id'
     };
 
   }
@@ -915,13 +914,13 @@ class dataTest extends PostgreModel {
   }
 
   //调用此函数，创建数据，会自动执行triggerInsert。
-  async create (data) {
+  async create(data) {
     return this.returning(['id', 'data_id']).trigger().insert(data);
   }
 
 }
 
-module.exports = dataTest;
+module.exports = DataTest;
 
 ```
 

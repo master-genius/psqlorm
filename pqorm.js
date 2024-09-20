@@ -5,9 +5,9 @@ const TableTrigger = require('./tableTrigger.js');
 const types = require('./dataTypes.js');
 const makeId = require('./makeId.js');
 
-function pqorm(db) {
-  if (!(this instanceof pqorm)) {
-    return new pqorm(db);
+function PsqlORM(db) {
+  if (!(this instanceof PsqlORM)) {
+    return new PsqlORM(db);
   }
 
   this.db = db;
@@ -54,7 +54,7 @@ function pqorm(db) {
   this.tableTrigger = new TableTrigger();
 }
 
-pqorm.prototype.free = function (mdb) {
+PsqlORM.prototype.free = function (mdb) {
   if (this.pool.length < this.__max__) {
     if (mdb.__state__ === mdb.state.USING) {
       mdb.init();
@@ -64,12 +64,13 @@ pqorm.prototype.free = function (mdb) {
       mdb.__transaction__ = false;
       mdb.tableName = '';
       mdb.__pkey_type__ = 'v';
+      mdb.__validate__ = null;
       this.pool.push(mdb);
     }
   }
 }
 
-pqorm.prototype.getm = function (tablename, schema) {
+PsqlORM.prototype.getm = function (tablename, schema) {
   if (this.pool.length > 0) {
     let t = this.pool.pop();
     t.odb = t.db = this.db;
@@ -85,54 +86,59 @@ pqorm.prototype.getm = function (tablename, schema) {
   return null;
 }
 
-pqorm.prototype.ignoreCopyWarning = function (igr=true) {
+PsqlORM.prototype.ignoreCopyWarning = function (igr=true) {
   process.env.PSQLORM_IGNORE_COPY_WARNING = igr
 }
 
-pqorm.prototype.setSchema = function (name) {
+PsqlORM.prototype.setSchema = function (name, runsql=false) {
   this.schema = name
+
+  if (runsql) {
+    this.db.query(`set search_path to ${name}`).catch(err => {})
+  }
 }
 
-pqorm.prototype.model = function (tablename, schema = '') {
-  let mdb = this.getm(tablename, schema || this.schema);
+PsqlORM.prototype.model = function (tablename, schema = '') {
+  let mdb = this.getm(tablename, schema || this.schema)
 
-  if (mdb) return mdb;
+  if (mdb) return mdb
 
-  return new mo(this.db, tablename, schema || this.schema, this, this.tableTrigger);
-};
+  return new mo(this.db, tablename, schema || this.schema, this, this.tableTrigger)
+}
 
-pqorm.prototype.connect = function (tablename = '', schema = '') {
+PsqlORM.prototype.connect = function (tablename = '', schema = '') {
   return this.model(tablename, schema).connect()
 }
 
-pqorm.prototype.transaction = async function (callback, schema = '') {
-  let m = this.getm('', schema || this.schema);
+PsqlORM.prototype.transaction = async function (callback, schema = '') {
+  let m = this.getm('', schema || this.schema)
 
   if (m) {
-    return m.transaction(callback);
+    return m.transaction(callback)
   }
 
-  m = new mo(this.db, '', schema || this.schema, this, this.tableTrigger);
+  m = new mo(this.db, '', schema || this.schema, this, this.tableTrigger)
 
-  return m.transaction(callback);
+  return m.transaction(callback)
 }
 
-pqorm.prototype.end = function () {
+PsqlORM.prototype.end = function () {
   this.db.end()
 }
 
-pqorm.prototype.query = function(sql, args) {
+PsqlORM.prototype.query = function(sql, args) {
   return this.db.query(sql, args||[])
 }
 
-pqorm.initORM = (config, schema = null) => {
-  let pg = require('pg');
-  let orm = new pqorm(new pg.Pool(config));
-  if (schema) orm.schema = schema;
-  return orm;
+PsqlORM.initORM = (config, schema=null) => {
+  let pg = require('pg')
+  let orm = new PsqlORM(new pg.Pool(config))
+  if (schema) orm.schema = schema
+  return orm
 }
 
-pqorm.dataTypes = types
-pqorm.makeId = makeId
+PsqlORM.dataTypes = types
+PsqlORM.makeId = makeId
 
-module.exports = pqorm
+module.exports = PsqlORM
+
