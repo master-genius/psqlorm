@@ -23,6 +23,8 @@ let make_timestamp_func = (typ) => {
   return null
 }
 
+let illegal_regex = /[\s\*\$\@\!\~\%\^\&\(\)\:\.\,\<\>\)\[\]\/\\\|\{\}\=\+]+/;
+
 /**
  * 在原型上设计一个支持自动化初始化的函数支持。
  * */
@@ -220,7 +222,7 @@ class PostgreModel {
       this.tableName = this.tableName.toLowerCase();
     }
 
-    if ((/[\s\*\$\@\!\~\%\^\&\(\)\:\.\,\<\>\)\[\]\/\\\|\{\}\=\+]+/).test(this.tableName)) {
+    if (illegal_regex.test(this.tableName)) {
       throw new Error(`${this.tableName} 数据表名称不合法，不能包含空白字符和特殊字符，支持字母数字下划线。`);
     }
     
@@ -298,6 +300,12 @@ class PostgreModel {
     let _col = null;
     let _timestamp_action = '';
     for (let k in this.table.column) {
+      if (illegal_regex.test(k)) {
+        console.error(`column: ${k} 存在非法字符，此列会被删除`)
+        delete this.table.column[k]
+        continue
+      }
+
       _col = this.table.column[k]
       if (_col && typeof _col === 'string') {
         this.table.column[k] = {
@@ -1366,12 +1374,6 @@ class PostgreModel {
 
     for (let k in this.table.column) {
       col = k.toLowerCase()
-      /* if (forbidColumnName.indexOf(col) >= 0) {
-        console.error(`\x1b[2;31;47m!!!${this.tableName} column ${k} 命名和sql关键字冲突，请修改。\x1b[0m`);
-        process.exit(1);
-        illegal_count++;
-        continue;
-      } */
 
       if (col !== k) {
         setTimeout(() => {
@@ -1557,9 +1559,7 @@ class PostgreModel {
         sql = `${sql.trim().substring(0, sql.length-1)})`;
       }
       
-      if (debug) {
-        console.log(sql);
-      }
+      debug && console.log(sql);
 
       await this.db.query(sql);
       await this._syncIndex(curTableName, debug);
