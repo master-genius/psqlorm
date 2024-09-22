@@ -924,7 +924,21 @@ module.exports = DataTest;
 
 ```
 
+### 命令快速创建Model
+
+```shell
+npx new-model [model name]
+```
+
+示例：
+
+```shell
+npx new-model user admin media
+```
+
 ----
+
+建议使用命令快速创建Model，在生成的文件里，有详细的注释说明，可以快速参考，并进行编码工作。
 
 # 内部设计、注意事项、高级用法
 
