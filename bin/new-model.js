@@ -35,6 +35,7 @@ return `${ust}
  * @property {boolean} notNull - 不允许为null，默认为true。
  * @property {string} oldName - 原column名称，如果要重命名字段，需要oldName指定原有名字。
  * @property {boolean} typeLock - 是否锁定类型，如果为true则会锁定类型，不会更新。
+ * @property {function|RegExp|array} validate - 数据验证，如果是函数类型，返回false表示验证失败。
  *
  * 如果指定ref，type会保持和外键引用的字段一致。
  */
@@ -150,15 +151,15 @@ let example_code = `
   //在事务中，trigger()会根据状态标记自动识别是执行完sql触发还是事务提交以后再触发。。
 
   //示例函数，请根据实际需求修改代码。
-  async create (data) {
-    return this.returning(['id', 'name']).insert(data);
+  async create(data) {
+    return this.returning(['id', 'name']).insert(data)
   }
 
   /**
    * ------ 事务处理示例函数
    * ------ 示例代码仅作基本使用的参考...
    */
-  async example_transaction (data) {
+  async example_transaction(data) {
     //只有使用参数传递的db执行sql才是事务操作。
     /**
      * @param {Model} db db是PostgreModel实例。
@@ -175,8 +176,8 @@ let example_code = `
         
         /*
           如果不使用bind绑定，则执行sql就不是事务操作。
-          你可以只用db，并指定table：
-              db.table('users').where({role: 'test'}).update(data)
+          你可以只用db，并指定model：
+              db.model('users').where({role: 'test'}).update(data)
         */
         /*
         let users = this.getModel('users').bind(db)
