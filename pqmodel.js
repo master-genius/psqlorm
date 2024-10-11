@@ -775,165 +775,69 @@ class PostgreModel {
     return h.where(cond).delete();
   }
 
+  async count(colname='*') {
+    return this.model().count(colname)
+  }
+
+  throwNoFieldsError(field) {
+    if (this.table.column[field] === undefined)
+      throw new Error(`！！${this.tableName} 没有column：${field}`);
+  }
+
   /**
    * 
-   * @param cond {object} - 条件
-   * @param options {object}
-   *  - schema {string} 数据库schema。
+   * @param field {string} - 要聚合的字段。
+   * @param to {string} - 聚合后返回的数据类型。
+   * @param prec {number} - 聚合后返回的数据精度。
    * @returns Promise
    */
-  async count(cond={}, options = {column:'*', schema: null}) {
-    if (!options) options = {};
+  async max(field, to = '', prec = 0) {
+    let col = this.table.column[field]
+    !col && this.throwNoFieldsError(field)
 
-    if (typeof cond === 'string') {
-      options.column = cond;
-      cond = {};
-    }
-
-    let col = options.column || '*';
-    return this._mschema(options.schema).where(cond).count(col);
-  }
-
-  _fmtNum(m, options) {
-    let col = this.table.column[options.field];
-
-    if (!options.to && col && col.to) {
-      options.to = col.to;
-    }
-
-    if (options.precision === undefined && col.precision !== undefined) {
-      options.precision = col.precision;
-    }
-
-    switch(options.to) {
-      case 'int':
-        return parseInt(m);
-
-      case 'float':
-        return parseFloat(m);
-
-      case 'fixed':
-      case 'fixed-float':
-        let prec = (options.precision !== undefined && typeof options.precision === 'number')
-                    ? options.precision
-                    : 1;
-        if (options.to === 'fixed')
-          return parseFloat(m).toFixed(prec);
-
-        return parseFloat(parseFloat(m).toFixed(prec));
-    }
-
-    return m;
-  }
-
-  throwNoFieldsError(options) {
-    if (!options.field) throw new Error('!!必须指定fileds。');
-    if (this.table.column[options.field] === undefined)
-      throw new Error(`！！没有column：${options.field}.`);
+    return this.model().max(field, to || col.to || '', prec || col.precision || 1)
   }
 
   /**
    * 
-   * @param cond {object} - 条件
-   * @param options {object}
-   *  - schema {string} 数据库schema。
-   *  - field {string} 聚合操作的列。
+   * @param field {string} - 要聚合的字段。
+   * @param to {string} - 聚合后返回的数据类型：int float fixed。
+   * @param prec {number} - 聚合后返回的数据精度。
    * @returns Promise
    */
-  async max(cond = {}, options = {schema: null}) {
-    if (!options) options = {};
+  async min(field, to = '', prec = 0) {
+    let col = this.table.column[field]
+    !col && this.throwNoFieldsError(field)
 
-    if (typeof cond === 'string') {
-      options.field = cond;
-      cond = {};
-    }
-
-    if (typeof options === 'string') options = {field: options};
-
-    this.throwNoFieldsError(options);
-    
-    let m = await this._mschema(options.schema).where(cond).max(options.field);
-
-    if (!options.to) return m;
-
-    return this._fmtNum(m, options);
+    return this.model().min(field, to || col.to || '', prec || col.precision || 1)
   }
 
   /**
    * 
-   * @param cond {object} - 条件
-   * @param options {object}
-   *  - schema {string} 数据库schema。
-   *  - field {string} 聚合操作的列。
-   * @returns object
+   * @param {string} field 
+   * @param {string} to - int float fixed
+   * @param {number} prec 
+   * @returns 
    */
-  async min(cond = {}, options = {schema: null}) {
-    if (!options) options = {};
+  async avg(field, to = '', prec = 0) {
+    let col = this.table.column[field]
+    !col && this.throwNoFieldsError(field)
 
-    if (typeof cond === 'string') {
-      options.field = cond;
-      cond = {};
-    }
-    if (typeof options === 'string') options = {field: options};
-
-    this.throwNoFieldsError(options);
-    
-    let m = await this._mschema(options.schema).where(cond).min(options.field);
-
-    if (!options.to) return m;
-
-    return this._fmtNum(m, options);
+    return this.model().avg(field, to || col.to || '', prec || col.precision || 1)
   }
 
   /**
    * 
-   * @param cond {object} - 条件
-   * @param options {object}
-   *  - schema {string} 数据库schema。
-   *  - field {string} 聚合操作的列。
+   * @param field {string} - 要聚合的字段。
+   * @param to {string} - 聚合后返回的数据类型：int float fixed。
+   * @param prec {number} - 聚合后返回的数据精度。
    * @returns Promise
    */
-  async avg(cond = {}, options = {schema: null}) {
-    if (!options) options = {};
+  async sum(field, to = '', prec = 0) {
+    let col = this.table.column[field]
+    !col && this.throwNoFieldsError(field)
 
-    if (typeof cond === 'string') {
-      options.field = cond;
-      cond = {};
-    }
-    if (typeof options === 'string') options = {field: options};
-
-    this.throwNoFieldsError(options);
-
-    let m = await this._mschema(options.schema).where(cond).avg(options.field);
-    if (!options.to) return m;
-
-    return this._fmtNum(m, options);
-  }
-
-  /**
-   * 
-   * @param cond {object} - 条件
-   * @param options {object}
-   *  - schema {string} 数据库schema。
-   *  - field {string} 聚合操作的列。
-   * @returns Promise
-   */
-  async sum(cond = {}, options = {schema: null}) {
-    if (!options) options = {};
-
-    if (typeof cond === 'string') {
-      options.field = cond;
-      cond = {};
-    }
-    if (typeof options === 'string') options = {field: options};
-
-    this.throwNoFieldsError(options);
-
-    let m = await this._mschema(options.schema).where(cond).sum(options.field);
-
-    if (!options.to) return m;
-
-    return this._fmtNum(m, options);
+    return this.model().sum(field, to || col.to || '', prec || col.precision || 1)
   }
 
   quote(a) {
@@ -980,7 +884,7 @@ class PostgreModel {
    * */
   async dataOut(options = {}) {
     let cond = options.where || {};
-    let total = await this.count(cond);
+    let total = await this.where(cond).count();
     let pagesize = 1000;
 
     if (options.pagesize && typeof options.pagesize === 'number' && options.pagesize > 1) {

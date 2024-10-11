@@ -756,8 +756,10 @@ class Model {
         return parseFloat(val);
 
       case 'fixed':
+      case 'fixed-float':
         let a = parseFloat(val);
         if (isNaN(a)) return val;
+        if (type === 'fixed') return a.toFixed(prec);
         return parseFloat( a.toFixed(prec) );
     }
 
