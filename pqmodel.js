@@ -696,25 +696,6 @@ class PostgreModel {
   /**
    * 
    * @param cond {object} - 条件
-   * @param data {object} - 要更新的数据
-   * @param options {object}
-   *  - schema {string} 数据库schema。
-   *  - returning {string} sql语句的returning列。
-   * @returns Promise
-   */
-  async _update(cond, data, options={schema: null}) {
-    this.__auto_timestamp__.update && makeTimestamp(data, this.__auto_timestamp__.update);
-    
-    let h = this._mschema(options.schema);
-
-    options.returning && (h = h.returning(options.returning));
-
-    return h.where(cond).update(data);
-  }
-
-  /**
-   * 
-   * @param cond {object} - 条件
    * @param args {object}
    *  - schema {string} 数据库schema。
    *  - pagesize {number} 分页大小。
@@ -746,33 +727,6 @@ class PostgreModel {
 
   async get(fields='*', options={schema:null}) {
     return this._mschema(options.schema||'').get(fields);
-  }
-
-  /**
-   * 
-   * @param cond {object} - 条件
-   * @param options {object}
-   *  - schema {string} 数据库schema。
-   *  - field {string|array} 返回的列，默认为selectField设置的值。
-   * @returns object
-   */
-  async _get(cond = {}, options = {field: null, schema: null}) {
-    return this._mschema(options.schema).where(cond).get(options.field || this.selectField);
-  }
-
-  /**
-   * 
-   * @param cond {object} - 条件
-   * @param options {object}
-   *  - schema {string} 数据库schema。
-   *  - returning {string} sql语句的returning列。
-   * @returns Promise
-   */
-  async _delete(cond, options = {schema: null}) {
-    let h = this._mschema(options.schema);
-    options.returning && (h = h.returning(options.returning));
-
-    return h.where(cond).delete();
   }
 
   async count(colname='*') {
@@ -922,18 +876,12 @@ class PostgreModel {
     //默认返回生成器。
     let self = this;
     return async function * () {
-      
       let ret;
       let fields = options.field || '*';
       let schema = options.schema || null;
 
       while (true) {
-        ret = await self.select(cond, {
-          offset,
-          pagesize,
-          field: fields,
-          schema
-        });
+        ret = await self._mschema(schema).where(cond).limit(pagesize, offset).select(fields);
         
         if (offset < total && ret.length > 0) {
           yield ret;
@@ -1044,15 +992,15 @@ class PostgreModel {
       options.callback = null;
     }
 
-    if (options.mode === 'strict' && (wrongs.length > 0 || notin.length > 0))
+    if (options.mode === 'strict' && (wrongs.length > 0 || notin.length > 0)) {
       return {
         ok: false,
         dataWrong: wrongs,
         fieldWrong: notin
-      };
+      }
+    }
 
     let ret = await this.transaction(async (db, ret) => {
-
         if (createList.length > 0) {
           options.callback && await options.callback(this, createList, {stage: 'before', command: 'insert', action: 'insert'})
           
@@ -1316,7 +1264,6 @@ class PostgreModel {
    *   - 是否强制同步，默认为false，若为true则会强制把数据库改为和table结构一致。
    */
   async sync(debug=false, force=false, dropNotExistCol=false) {
-
     if (!this.table) {
       console.error('没有table对象');
       return false;

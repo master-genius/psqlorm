@@ -205,7 +205,7 @@ class Model {
   }
 
   schema(name) {
-    this.__schema__ = name;
+    name && (this.__schema__ = name);
     return this;
   }
 
@@ -596,7 +596,6 @@ class Model {
     } catch (err) {
       throw err;
     } finally {
-      this.init();
       if (!this.__free_lock__) {
         this.__free_lock__ = false;
         this.parent.free(this);
@@ -803,7 +802,6 @@ class Model {
   }
 
   free() {
-    this.init();
     this.parent.free(this);
   }
 
@@ -912,5 +910,4 @@ class Model {
 
 }
 
-module.exports = Model;
-
+module.exports = Model

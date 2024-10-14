@@ -63,8 +63,6 @@ PsqlORM.prototype.free = function (mdb) {
       mdb.__state__ = mdb.state.FREE;
       mdb.__transaction__ = false;
       mdb.tableName = '';
-      mdb.__pkey_type__ = 'v';
-      mdb.__validate__ = null;
       this.pool.push(mdb);
     }
   }
