@@ -844,85 +844,15 @@ object类型，用于指定表结构，从v8.3.0开始，table是一个函数对
 
 ### 完整的使用示例
 
-以下代码完成后，基本的增删改查，统计、求值、事务等处理直接可用。
+- 在model目录下创建相关的模型文件，比如user.js。
 
-``` JavaScript
+- 在文件内导入模块：const {PostgreModel, dataTypes} = require('psqlorm')
 
-'use strict';
+- 在文件编写类 User 继承自 PostgreModel。
 
-const PostgreModel = require('psqlorm').Model;
+- 导出模块：module.exports = User
 
-class DataTest extends PostgreModel {
-
-  constructor(pqorm) {
-    
-    //必须写
-    super(pqorm);
-
-    //主要用于外键自动更新，需要初始化模型。
-    this.modelPath = __dirname;
-
-    //主键id前缀，建议不要超过2字符，或者要把主键id字符长度上限设置为24+
-    this.idPre = '';
-
-    //需要替换成数据表真正的名称
-
-    this.tableName = 'data_test';
-
-    this.table = {
-      column : {
-        id : {
-          type : 'varchar(16)',
-        },
-
-        data_id : {
-          type : 'varchar(16)',
-        },
-
-        user_id : {
-          type : 'varchar(16)',
-          //指定外键引用为users模型的id字段。
-          ref: 'users:id',
-          //指定更新动作。
-          refActionDelete: 'cascade',
-          refActionUpdate: 'cascade',
-        },
-
-        add_time : {
-          type : 'bigint',
-          //表示进行insert操作时，自动创建时间戳。
-          timestamp: 'insert'
-        },
-      },
-
-      index  : [
-        'data_id',
-        'user_id'
-      ],
-      unique : [
-        'data_id,user_id'
-      ],
-
-      primaryKey: 'id'
-    };
-
-  }
-
-  //insert触发器。注意：触发器是异步操作。
-  triggerInsert(tg) {
-    console.log(tg);
-  }
-
-  //调用此函数，创建数据，会自动执行triggerInsert。
-  async create(data) {
-    return this.returning(['id', 'data_id']).trigger().insert(data);
-  }
-
-}
-
-module.exports = DataTest;
-
-```
+以上操作可以通过命令快速完成。
 
 ### 命令快速创建Model
 
@@ -930,10 +860,161 @@ module.exports = DataTest;
 npx new-model [model name]
 ```
 
-示例：
+**示例：**
 
 ```shell
 npx new-model user admin media
+```
+
+**创建dataTest示例：**
+
+```shell
+npx new-model dataTest
+```
+
+这会在model目录下创建dataTest.js文件，编辑文件内的table对象即可完成表的结构设计。
+
+以下代码完成后，基本的增删改查，统计、求值、事务等处理直接可用。
+
+``` JavaScript
+'use strict'
+
+const {PostgreModel, dataTypes} = require('psqlorm')
+
+/**
+ * @typedef {object} column
+ * @property {string} type - 类型
+ * @property {string} refActionDelete - 外键删除后的行为，可以设置为cascade，具体参考数据库文档。
+ * @property {string} refActionUpdate - 外键更新后的行为，可以设置为cascade，具体参考数据库文档。
+ * @property {string} ref - 外键引用，格式 ModelName:COLUMN，示例：'users:id'
+ * @property {string} indexType - 索引类型，需要指定索引具体类型时使用此属性。
+ * @property {string|number} default - 默认值。
+ * @property {boolean} notNull - 不允许为null，默认为true。
+ * @property {string} oldName - 原column名称，如果要重命名字段，需要oldName指定原有名字。
+ * @property {boolean} typeLock - 是否锁定类型，如果为true则会锁定类型，不会更新。
+ * @property {function|RegExp|array} validate - 数据验证，如果是函数类型，返回false表示验证失败。
+ *
+ * 如果指定ref，type会保持和外键引用的字段一致。
+ */
+
+/**
+ * @typeof {object} dataTypes
+ * @property {string} INT - 'int'
+ * @property {string} BIGINT - 'bigint'
+ * @property {string} SMALLINT - 'smallint'
+ * @property {string} TEXT - 'text'
+ * @property {string} JSONB - 'jsonb'
+ * @property {string} TIME - 'time'
+ * @property {string} DATE - 'date'
+ * @property {string} TIMESTAMP - 'timestamp'
+ * @property {string} TIMESTAMPZ - 'timestamp with zone'
+ * @property {string} BOOLEAN - 'boolean'
+ * @property {string} BYTE - 'bytea'
+ * @property {string} BID - 'bigint'
+ * @property {string} BIGSERIAL - 'bigserial'
+ * @property {string} ID - 'varchar(16)'
+ * @property {string} UID - 'varchar(18)'
+ * @property {string} OPENID - 'varchar(32)'
+ * @property {function} CHAR - CHAR(50) 返回 'char(50)'
+ * @property {function} STRING - STRING(50) 返回 'varchar(50)'
+ * @property {function} NUMBER - NUMBER(9,3) 返回 'numeric(9,3)'
+ * @property {function} NUMERIC - NUMERIC(9,3) 返回 'numeric(9,3)'
+ * @property {function} ARRAY - ARRAY('int') 返回 'int[]'
+ *
+ * dataTypes对常用的类型提供了一个中间层：
+ *  它的主要目的是提供统一格式并尽可能防止出错：尽可能避免大小写不一致、前后有空格等问题。
+ */
+
+let table = {
+  column: {
+    /**
+     * @type {column}
+     * id默认是主键，不需要再加入到unique索引。
+     * */
+    id: {
+      type: dataTypes.ID
+    },
+
+    /**
+     * @type {column}
+     * */
+    name: {
+      type: dataTypes.STRING(30),
+      default: ''
+    },
+
+    detail: {
+      type: dataTypes.STRING(200),
+      default: ''
+    },
+
+    /**
+     * @type {column}
+     * */
+    create_time: {
+      type: dataTypes.BIGINT,
+      default: 0,
+      //执行insert时自动生成时间戳
+      timestamp: 'insert'
+    },
+    
+    /**
+     * @type {column}
+     * */
+    update_time: {
+      type: dataTypes.BIGINT,
+      default: 0,
+      //执行update时自动生成时间戳
+      timestamp: 'update'
+    },
+  },
+
+  //主键，字符串类型会按照增长序列算法自动生成。
+  primaryKey: 'id',
+
+  //索引
+  index: [
+    'create_time',
+    'update_time'
+  ],
+
+  //唯一索引，注意：主键本身就是唯一索引，不必在此重复。
+  //联合唯一索引使用 , 分隔，示例：'name,orgid'
+  unique: [
+
+  ]
+}
+
+class DataTest extends PostgreModel {
+
+  constructor (pqorm) {
+    //必须存在并且写在最前面。
+    super(pqorm)
+
+    //主键id前缀，建议不要超过2字符，请确保前缀和idLen的长度 <= 数据库字段的最大长度。
+    this.idPre = ''
+
+    //id的长度，默认为16，为保证有序增长，建议id长度不要低于16。
+    //this.idLen = 16
+
+    //数据表真正的名称，注意：postgresql不支持表名大写，更改名称请使用小写字母。
+    this.tableName = 'data_test'
+
+    this.table = table
+
+    this.columns = Object.keys(this.table.column)
+  }
+
+  //一些在构造函数执行后才可以初始化的操作，写在init函数中。
+  async init() {
+
+  }
+
+  
+}
+
+module.exports = DataTest
+
 ```
 
 ----
