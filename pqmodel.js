@@ -306,7 +306,7 @@ class PostgreModel {
 
       if (k.toLowerCase() !== k) {
         setTimeout(() => {
-          console.error(`${this.tableName} column： ${k}不能使用大写字母，此列不会生效。`)
+          console.error(`!!${this.tableName} column： ${k}不能使用大写字母，此列不会生效。`)
         }, 10)
 
         delete this.table.column[k]
