@@ -1,7 +1,7 @@
 'use strict';
 
 const porm = require('../pqorm');
-const pqmodel = require('../pqmodel');
+const PostgreModel = require('../pqmodel');
 
 const db = {
   release: () => {},
@@ -14,13 +14,15 @@ const db = {
 
 let m = new porm(db);
 
-class TestModel extends pqmodel {
+class TestModel extends PostgreModel {
   constructor (db) {
     super(db);
     this.tableName = 'test';
     this.table = {
       column: {
-        id: 'bigint'
+        id: 'bigint',
+        ilike: 'int',
+        group: 'varchar(20)'
       }
     }
   }
@@ -123,6 +125,41 @@ let pm = new TestModel(m);
 
   console.log(r);
 
+  console.log('>>>>>>>>>> 测试 关键字同名的列 -------------')
+  console.log(
+    await pm.fetchSql().select(['id','group', 'ilike'])
+  )
+
+  console.log(
+    await pm.fetchSql().where({group: 'dsf'}).where('ilike', 'ok').select(['id', 'group', 'ilike'])
+  )
+
+  console.log(
+    await pm.fetchSql().where({group: 'ds'}).update({
+      group: 'ds1',
+      ilike: '1w'
+    })
+  )
+
+  console.log(
+    await pm.fetchSql().insert({
+      group: '123',
+      ilike: 'd346'
+    })
+  )
+
+  console.log(
+    await pm.fetchSql().insert([
+      {
+        group: 'dwd', ilike: 'oo'
+      },
+
+      {
+        group: 'ty', ilike: 'oo'
+      },
+    ])
+  )
+
   await pm.transaction(async (db, ret) => {
     
     let sqltext = await db.where({id: [1,2,3]}).fetchSql().select();
@@ -135,6 +172,4 @@ let pm = new TestModel(m);
 
   });
 
-
 })();
-

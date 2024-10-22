@@ -3,6 +3,7 @@
 const randstring = require('./randstring.js');
 const makeId = require('./makeId.js');
 const makeTimestamp = require('./makeTimestamp.js')
+const forbidColumns = require('./forbidColumns.js')
 
 let modelErrorText = '\n\x1b[2;31;47mWarning: model执行后会自动释放模型，'
     + '若需要重复使用，请调用connect()持有当前model实例，并在执行完毕后调用free()释放。\n'
@@ -75,6 +76,7 @@ class Model {
     this.__fetch_sql__ = false;
     this.__log_sql__ = null;
     this.__validate__ = null;
+    this.__fmtfields__ = null;
 
     this.stag = this.makeQuoteTag(5 + parseInt(Math.random() * 5));
     this.lstag = this.stag.substring(0, this.stag.length - 1);
@@ -146,6 +148,7 @@ class Model {
     
     autoInit && this.init();
     m.__validate__ = this.__validate__;
+    m.__fmtfields__ = this.__fmtfields__;
 
     return m;
   }
@@ -172,6 +175,7 @@ class Model {
     this.__insert_timestamp__ = null;
     this.__update_timestamp__ = null;
     this.__validate__ = null;
+    this.__fmtfields__ = null;
   }
 
   resetIdInfo() {
@@ -318,17 +322,18 @@ class Model {
     if (typeof cond === 'string') {
       let whstr = '';
       let typ = typeof args;
+      let real_field = this.__fmtfields__ ? (this.__fmtfields__[cond]||cond) : cond;
 
       if (args === undefined)
         throw new Error(`${cond} 传递了undefined值，请检查参数输入。`);
 
       switch (typ) {
         case 'number':
-          whstr = cond + '=' + args;
+          whstr = real_field + '=' + args;
           break;
 
         case 'string':
-          whstr = cond + '=' + this.quote(args);
+          whstr = real_field + '=' + this.quote(args);
           break;
 
         case 'object':
@@ -349,7 +354,7 @@ class Model {
               carr = condarr = null;
             }
           } else if (args === null) {
-            whstr = cond + ' is null';
+            whstr = real_field + ' is null';
           }
           break;
       }
@@ -365,42 +370,53 @@ class Model {
       let tmp = [];
       let t = null;
       let vals = [];
+      let fmt_k = '';
+      let cond_value = '';
       for (let k in cond) {
         if (k[0] === '[' && k.length > 1) {
           this.where(k.substring(1, k.length-1), cond[k]);
           continue;
         }
 
-        if ( Array.isArray(cond[k]) ) {
-          if (cond[k].length === 0) {
+        cond_value = cond[k];
+        
+        if (this.__fmtfields__) {
+          fmt_k = this.__fmtfields__[k];
+          fmt_k && (k = fmt_k);
+        }
+
+        if ( Array.isArray(cond_value) ) {
+          if (cond_value.length === 0) {
             throw new Error(`${k} 传递了空数组。`);
           }
 
           vals = [];
-          for (let i = 0; i < cond[k].length; i++) {
-            vals.push(this.quote(cond[k][i]));
+          for (let i = 0; i < cond_value.length; i++) {
+            vals.push(this.quote(cond_value[i]));
           }
           tmp.push(`${k} in (${vals.join(',')})`);
           continue;
         }
         
-        t = typeof cond[k];
+        t = typeof cond_value;
 
         if (t === 'number') {
-          tmp.push(`${k}=${cond[k]}`);
+          tmp.push(`${k}=${cond_value}`);
         } else if (t === 'string') {
-          tmp.push(`${k}=${this.quote(cond[k])}`);
+          tmp.push(`${k}=${this.quote(cond_value)}`);
         } else if (t === 'object') {
-          if (cond[k] === null) {
+          if (cond_value === null) {
             tmp.push(`${k} is null`);
             continue;
           }
-          for (let ks in cond[k]) {
-            if (cond[k][ks] === null) {
+
+          for (let ks in cond_value) {
+            if (cond_value[ks] === null) {
               tmp.push(`${k} ${ks} null`);
               continue;
             }
-            tmp.push(`${k} ${ks} ${this.quote(cond[k][ks])}`);
+
+            tmp.push(`${k} ${ks} ${this.quote(cond_value[ks])}`);
           }
         }
       }
@@ -447,16 +463,20 @@ class Model {
     return this.join(table, on, 'right');
   }
 
-  group(grpstr) {
-    this.sqlUnit.group = `group by ${grpstr} `;
+  group(colname) {
+    let real_field = this.__fmtfields__ ? (this.__fmtfields__[colname]||colname) : colname;
+
+    this.sqlUnit.group = `group by ${real_field} `;
     return this;
   }
 
   order(ostr, otype = '') {
+    let real_field = this.__fmtfields__ ? (this.__fmtfields__[ostr]||ostr) : ostr;
+
     if (this.sqlUnit.order) {
-      this.sqlUnit.order += `,${ostr} ${otype} `;
+      this.sqlUnit.order += `,${real_field} ${otype} `;
     } else {
-      this.sqlUnit.order = `order by ${ostr} ${otype} `;
+      this.sqlUnit.order = `order by ${real_field} ${otype} `;
     }
 
     return this;
@@ -476,7 +496,7 @@ class Model {
     let retstr;
 
     if (Array.isArray(cols))
-      retstr = cols.join(',');
+      retstr = this.fmtFields(cols).join(',');
     else if (typeof cols === 'string' && cols !== '')
       retstr = cols;
     else
@@ -603,14 +623,26 @@ class Model {
     }
   }
 
+  fmtFields(fields) {
+    if (!this.__fmtfields__) return fields;
+    let newfields = [];
+    let fname;
+    for (let a of fields) {
+      fname = this.__fmtfields__[a];
+      newfields.push(fname || a);
+    }
+
+    return newfields;
+  }
+
   async get(fields = '*') {
-    return this.select(fields, true);
+    return this.select(Array.isArray(fields) ? this.fmtFields(fields) : fields, true);
   }
 
   async select(fields = '*', first = false) {
     this.sqlUnit.command = first ? commandTable.GET : commandTable.SELECT;
     if ( Array.isArray(fields) ) {
-      this.sqlUnit.fields = fields.join(',');
+      this.sqlUnit.fields = this.fmtFields(fields).join(',');
     } else if (typeof fields === 'string') {
       this.sqlUnit.fields = fields;
     }
@@ -662,7 +694,7 @@ class Model {
 
     let fields = Object.keys(data);
     this.sqlUnit.command = commandTable.INSERT;
-    this.sqlUnit.fields = `(${fields.join(',')})`;
+    this.sqlUnit.fields = `(${this.fmtFields(fields).join(',')})`;
     let vals = [];
     for (let i = 0; i < fields.length; i++) {
       vals.push(this.quote(data[ fields[i] ]));
@@ -697,7 +729,7 @@ class Model {
     this.sqlUnit.command = commandTable.INSERTS;
     let fields = Object.keys(data[0]);
 
-    this.sqlUnit.fields = `(${fields.join(',')})`;
+    this.sqlUnit.fields = `(${this.fmtFields(fields).join(',')})`;
     
     let vals = [];
     let vallist = [];
@@ -725,13 +757,20 @@ class Model {
       let vals = [];
       this.__update_timestamp__ && makeTimestamp(data, this.__update_timestamp__);
 
+      let fmt_k;
+      let val;
       for (let k in data) {
+        val = data[k];
         if (k[0] === '@') {
-          vals.push(`${k.substring(1)}=${data[k]}`);
+          k = k.substring(1);
+          fmt_k = this.__fmtfields__ && this.__fmtfields__[k] ? this.__fmtfields__[k] : k;
+          vals.push(`${fmt_k}=${val}`);
           continue;
         }
 
-        vals.push(`${k}=${this.quote(data[k])}`);
+        fmt_k = this.__fmtfields__ && this.__fmtfields__[k] ? this.__fmtfields__[k] : k;
+
+        vals.push(`${fmt_k}=${this.quote(val)}`);
       }
 
       this.sqlUnit.values = vals.join(',');

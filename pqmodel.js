@@ -4,9 +4,7 @@ const makeId = require('./makeId.js');
 const randstring = require('./randstring.js');
 const makeTimestamp = require('./makeTimestamp.js')
 
-let forbidColumnName = [
-  'like', 'ilike', 'column'
-];
+let forbidColumnName = require('./forbidColumns.js')
 
 let make_timestamp_func = (typ) => {
   if (!typ) return null;
@@ -211,7 +209,7 @@ class PostgreModel {
 
   }
 
-  async __init__ () {
+  async __init__() {
     this.tableName = this.tableName.trim();
     if (!this.tableName || typeof this.tableName !== 'string') {
       throw new Error('未指定表名称');
@@ -301,7 +299,16 @@ class PostgreModel {
     let _timestamp_action = '';
     for (let k in this.table.column) {
       if (illegal_regex.test(k)) {
-        console.error(`column: ${k} 存在非法字符，此列会被删除`)
+        console.error(`${this.tableName} column: ${k} 存在非法字符，此列会被删除`)
+        delete this.table.column[k]
+        continue
+      }
+
+      if (k.toLowerCase() !== k) {
+        setTimeout(() => {
+          console.error(`${this.tableName} column： ${k}不能使用大写字母，此列不会生效。`)
+        }, 10)
+
         delete this.table.column[k]
         continue
       }
@@ -359,6 +366,13 @@ class PostgreModel {
       value: Object.create(null)
     })
 
+    Object.defineProperty(this.table, '__fmtfields__', {
+      enumerable: false,
+      configurable: false,
+      writable: false,
+      value: Object.create(null)
+    })
+
     for (let k in this.table.column) {
       let col = this.table.column[k]
       if (col && col.validate) {
@@ -370,7 +384,16 @@ class PostgreModel {
           this.table.__validate__[k] = (d) => { return !!col.validate.test(d) }
         }
       }
+
+      forbidColumnName.includes(k) && (this.table.__fmtfields__[k] = `"${k}"`)
     }
+
+    Object.defineProperty(this.table, '__fmtfields_count__', {
+      enumerable: false,
+      configurable: false,
+      writable: false,
+      value: Object.keys(this.table.__fmtfields__).length
+    })
 
     if (this.init && typeof this.init === 'function') {
       queueMicrotask(() => {
@@ -453,6 +476,7 @@ class PostgreModel {
     m.__primary_key__ = this.primaryKey;
     m.__pkey_type__ = this.__pkey_type__;
     m.__validate__ = this.table.__validate__;
+    m.__fmtfields__ = this.table.__fmtfields_count__ > 0 ? this.table.__fmtfields__ : null;
 
     if (!tname || this.tableName === tname) {
       this.__auto_timestamp__.insert && (m.__insert_timestamp__ = this.__auto_timestamp__.insert);
@@ -626,25 +650,12 @@ class PostgreModel {
    *  - returning {string} sql语句的returning列。
    * @returns Promise
    */
-  async insert(data, options={schema: null}) {
+  async insert(data) {
     if (Array.isArray(data)) {
-      return this.insertAll(data, options);
+      return this.insertAll(data);
     }
 
-    this.__auto_timestamp__.insert && makeTimestamp(data, this.__auto_timestamp__.insert);
-    this.__auto_timestamp__.update && makeTimestamp(data, this.__auto_timestamp__.update);
-
-    let h = this._mschema(options.schema);
-
-    if (this.primaryKey && typeof this.primaryKey === 'string'
-      && data[this.primaryKey] === undefined && this.__auto_id__)
-    {
-      data[this.primaryKey] = this._makeId(this.idLen, this.idPre);
-      h.returning(this.primaryKey);
-    }
-    
-    options.returning && (h = h.returning(options.returning));
-    return h.insert(data);
+    return this.model().insert(data);
   }
 
   /**
@@ -655,41 +666,15 @@ class PostgreModel {
    *  - returning {string} sql语句的returning列。
    * @returns Promise
    */
-  async insertAll(data, options={schema: null}) {
+  async insertAll(data) {
     if (!Array.isArray(data)) {
       throw new Error(`data不是数组，无法写入多个条目到数据库。`);
     }
 
-    let idlist = [];
-
-    let h = this._mschema(options.schema);
-
-    if (this.__auto_id__ && this.primaryKey && typeof this.primaryKey === 'string') {
-      h.returning(this.primaryKey);
-
-      for (let i=0; i < data.length; i++) {
-        this.__auto_timestamp__.insert
-          &&
-        makeTimestamp(data[i], this.__auto_timestamp__.insert);
-
-        this.__auto_timestamp__.update
-          &&
-        makeTimestamp(data[i], this.__auto_timestamp__.update);
-    
-        if (data[i][this.primaryKey] === undefined) {
-          data[i][this.primaryKey] = this._makeId(this.idLen, this.idPre);
-        }
-
-        idlist.push(data[i].id);
-      }
-    }
-  
-    options.returning && (h = h.returning(options.returning));
-
-    return h.insertAll(data);
+    return this.model().insertAll(data);
   }
 
-  async update(data, options={schema:null}) {
+  async update(data) {
     return this.model().update(data);
   }
 
@@ -703,30 +688,12 @@ class PostgreModel {
    *  - order {string} 排序方式。
    * @returns object
    */
-  async select(cond, args = {schema: null}) {
-    if (!cond || typeof cond === 'string' || Array.isArray(cond)) {
-      return this.model().select(cond ? cond : '*');
-    }
-
-    let t = this._mschema(args.schema).where(cond);
-
-    let offset = args.offset || 0;
-
-    if (args.pagesize !== undefined) {
-      t = t.limit(args.pagesize, offset);
-    } else {
-      t = t.limit(this.pagesize, offset);
-    }
-    
-    if (args.order) {
-      t = t.order(args.order);
-    }
-    
-    return t.select(args.field || this.selectField);
+  async select(cond) {
+    return this.model().select(cond ? cond : '*')
   }
 
-  async get(fields='*', options={schema:null}) {
-    return this._mschema(options.schema||'').get(fields);
+  async get(fields='*') {
+    return this.model().get(fields);
   }
 
   async count(colname='*') {
