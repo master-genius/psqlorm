@@ -22,7 +22,9 @@ class TestModel extends PostgreModel {
       column: {
         id: 'bigint',
         ilike: 'int',
-        group: 'varchar(20)'
+        group: 'varchar(20)',
+        if: 'int',
+        AD: 'int'
       }
     }
   }
@@ -30,7 +32,6 @@ class TestModel extends PostgreModel {
 }
 
 let pm = new TestModel(m);
-
 
 ;(async () => {
 
@@ -82,7 +83,8 @@ let pm = new TestModel(m);
            })
           .update({
             '@points' : 'points+5',
-            point_type : 'increase'
+            point_type : 'increase',
+            '@inner': 'inner+1'
           });
 
   console.log(r);
@@ -126,6 +128,8 @@ let pm = new TestModel(m);
   console.log(r);
 
   console.log('>>>>>>>>>> 测试 关键字同名的列 -------------')
+  console.log(pm.table.column, pm.__errors__)
+
   console.log(
     await pm.fetchSql().select(['id','group', 'ilike'])
   )
@@ -139,6 +143,10 @@ let pm = new TestModel(m);
       group: 'ds1',
       ilike: '1w'
     })
+  )
+
+  console.log(
+    await pm.fetchSql().where({group: 'ds'}).min('ilike')
   )
 
   console.log(

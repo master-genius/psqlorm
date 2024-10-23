@@ -4,7 +4,7 @@ const makeId = require('./makeId.js');
 const randstring = require('./randstring.js');
 const makeTimestamp = require('./makeTimestamp.js')
 
-let forbidColumnName = require('./forbidColumns.js')
+let forbidColumns = require('./forbidColumns.js')
 
 let make_timestamp_func = (typ) => {
   if (!typ) return null;
@@ -132,7 +132,9 @@ class PostgreModel {
       'varchar', 'char', 'text', 'bytea', 'timestamp', 'timestampz', 'date', 'time'
     ];
 
-    ['defaultWithType', 'typeWithBrackets', 'times', 'strings', 'numerics', 'dataTypeMap'].forEach(a => {
+    ;[
+      'defaultWithType', 'typeWithBrackets', 'times', 'strings', 'numerics', 'dataTypeMap'
+    ].forEach(a => {
       Object.defineProperty(this, a, {
         value: this[a],
         enumerable: false,
@@ -180,7 +182,7 @@ class PostgreModel {
         enumerable: false,
         configurable: false,
         writable: true,
-        value: 200
+        value: 500
       },
 
       __pkey_type__: {
@@ -195,6 +197,13 @@ class PostgreModel {
         configurable: false,
         writable: true,
         value: {}
+      },
+
+      __errors__: {
+        enumerable: false,
+        configurable: false,
+        writable: true,
+        value: []
       }
     });
 
@@ -215,8 +224,11 @@ class PostgreModel {
       throw new Error('未指定表名称');
     }
 
+    let errtext = '';
     if ((/[A-Z]+/).test(this.tableName)) {
-      console.error(`${this.tableName} 表名不支持大写，已自动更改为小写。`);
+      errtext = `${this.tableName} 表名不支持大写，已自动更改为小写。`;
+      this.__errors__.push(errtext);
+      console.error(errtext);
       this.tableName = this.tableName.toLowerCase();
     }
 
@@ -299,15 +311,26 @@ class PostgreModel {
     let _timestamp_action = '';
     for (let k in this.table.column) {
       if (illegal_regex.test(k)) {
-        console.error(`${this.tableName} column: ${k} 存在非法字符，此列会被删除`)
+        errtext = `!!${this.tableName} >> column: ${k} 存在非法字符，此列会被删除。`
+        this.__errors__.push(errtext)
+        console.error(errtext)
         delete this.table.column[k]
         continue
       }
 
       if (k.toLowerCase() !== k) {
-        setTimeout(() => {
-          console.error(`!!${this.tableName} column： ${k}不能使用大写字母，此列不会生效。`)
-        }, 10)
+        errtext = `!!${this.tableName} >> column： ${k}不能使用大写字母，此列不会生效。`
+        this.__errors__.push(errtext)
+        console.error(errtext)
+
+        delete this.table.column[k]
+        continue
+      }
+
+      if (forbidColumns.forbid.includes(k)) {
+        errtext = `!!${this.tableName} >> column： ${k} 禁止使用关键词，此列不会生效。`
+        this.__errors__.push(errtext)
+        console.error(errtext)
 
         delete this.table.column[k]
         continue
@@ -323,7 +346,9 @@ class PostgreModel {
       }
 
       if (!_col || typeof _col !== 'object') {
-        console.error(`${this.tableName}: ${k} 未指定为object类型，请修改。`)
+        errtext = `${this.tableName}: ${k} 未指定为object类型，请修改。`
+        this.__errors__.push(errtext)
+        console.error(errtext)
         continue
       }
 
@@ -385,7 +410,7 @@ class PostgreModel {
         }
       }
 
-      forbidColumnName.includes(k) && (this.table.__fmtfields__[k] = `"${k}"`)
+      forbidColumns.quote.includes(k) && (this.table.__fmtfields__[k] = `"${k}"`)
     }
 
     Object.defineProperty(this.table, '__fmtfields_count__', {
@@ -1218,7 +1243,7 @@ class PostgreModel {
   }
 
   fmtColName(col) {
-    if (forbidColumnName.indexOf(col) >= 0) return `"${col}"`;
+    if (forbidColumns.quote.indexOf(col) >= 0) return `"${col}"`;
 
     return col;
   }

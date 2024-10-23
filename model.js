@@ -805,7 +805,7 @@ class Model {
   }
 
   async avg(field, to = '', prec = 1) {
-    let r = await this.get(`avg(${field}) as average`);
+    let r = await this.get(`avg(${this.__fmtfields__ ? (this.__fmtfields__[field]||field) : field}) as average`);
     if (this.__fetch_sql__) return r;
 
     if (r === null) return null;
@@ -816,7 +816,7 @@ class Model {
   }
 
   async max(field, to = '', prec = 1) {
-    let r = await this.get(`max(${field}) as m`);
+    let r = await this.get(`max(${this.__fmtfields__ ? (this.__fmtfields__[field]||field) : field}) as m`);
     if (this.__fetch_sql__) return r;
     if (r === null) return null;
 
@@ -825,7 +825,7 @@ class Model {
   }
 
   async min(field, to = '', prec = 1) {
-    let r = await this.get(`min(${field}) as m`);
+    let r = await this.get(`min(${this.__fmtfields__ ? (this.__fmtfields__[field]||field) : field}) as m`);
     if (this.__fetch_sql__) return r;
     if (r === null) return null;
     if (to) return this.toValue(r.m, to, prec);
@@ -833,7 +833,7 @@ class Model {
   }
 
   async sum(field, to = '', prec = 1) {
-    let r = await this.get(`sum(${field}) as sum_value`);
+    let r = await this.get(`sum(${this.__fmtfields__ ? (this.__fmtfields__[field]||field) : field}) as sum_value`);
     if (this.__fetch_sql__) return r;
     if (r === null) return null;
     if (to) return this.toValue(r.sum_value, to, prec);
