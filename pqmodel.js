@@ -203,7 +203,7 @@ class PostgreModel {
         enumerable: false,
         configurable: false,
         writable: true,
-        value: []
+        value: null
       }
     });
 
@@ -219,6 +219,7 @@ class PostgreModel {
   }
 
   async __init__() {
+    this.__errors__ = [];
     this.tableName = this.tableName.trim();
     if (!this.tableName || typeof this.tableName !== 'string') {
       throw new Error('未指定表名称');
