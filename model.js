@@ -525,7 +525,7 @@ class Model {
       case commandTable.SELECT:
       case commandTable.GET:
         sql = `select ${this.sqlUnit.fields} from ${schemaTable}${this.sqlUnit.join}`
-            + `${this.sqlUnit.where ? 'where ' : ''}${this.sqlUnit.where} `
+            + `${this.sqlUnit.where ? ' where ' : ''}${this.sqlUnit.where} `
             + `${this.sqlUnit.group}${this.sqlUnit.order}${this.sqlUnit.limit}${this.sqlUnit.selectFor};`;
         break;
 
