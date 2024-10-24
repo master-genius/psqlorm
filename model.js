@@ -451,7 +451,7 @@ class Model {
   }
 
   join(table, on, join_type = 'inner') {
-    this.sqlUnit.join += `${join_type} join ${this.__schema__}.${table} on ${on} `;
+    this.sqlUnit.join += ` ${join_type} join ${this.__schema__}.${table} on ${on} `;
     return this;
   }
 
@@ -470,7 +470,11 @@ class Model {
     return this;
   }
 
-  order(ostr, otype = '') {
+  order(str, otype='') {
+    return this.orderby(str, otype)
+  }
+
+  orderby(ostr, otype='') {
     let real_field = this.__fmtfields__ ? (this.__fmtfields__[ostr]||ostr) : ostr;
 
     if (this.sqlUnit.order) {
@@ -520,17 +524,17 @@ class Model {
     switch (this.sqlUnit.command) {
       case commandTable.SELECT:
       case commandTable.GET:
-        sql = `select ${this.sqlUnit.fields} from ${schemaTable} ${this.sqlUnit.join} `
-            + `${this.sqlUnit.where.length > 0 ? 'where ' : ''}${this.sqlUnit.where} `
+        sql = `select ${this.sqlUnit.fields} from ${schemaTable}${this.sqlUnit.join}`
+            + `${this.sqlUnit.where ? 'where ' : ''}${this.sqlUnit.where} `
             + `${this.sqlUnit.group}${this.sqlUnit.order}${this.sqlUnit.limit}${this.sqlUnit.selectFor};`;
         break;
 
       case commandTable.DELETE:
-        sql = `delete from ${schemaTable} ${this.sqlUnit.where.length > 0 ? 'where ' : ''}${this.sqlUnit.where}${this.sqlUnit.returning};`;
+        sql = `delete from ${schemaTable} ${this.sqlUnit.where ? 'where ' : ''}${this.sqlUnit.where}${this.sqlUnit.returning};`;
         break;
 
       case commandTable.UPDATE:
-        sql = `update ${schemaTable} set ${this.sqlUnit.values} ${this.sqlUnit.where.length > 0 ? ' where ' : ''} ${this.sqlUnit.where}${this.sqlUnit.returning};`;
+        sql = `update ${schemaTable} set ${this.sqlUnit.values} ${this.sqlUnit.where ? ' where ' : ''} ${this.sqlUnit.where}${this.sqlUnit.returning};`;
         break;
 
       case commandTable.INSERT:

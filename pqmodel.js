@@ -798,9 +798,13 @@ class PostgreModel {
   fetchSql(b=true) {
     return this.model().fetchSql(b);
   }
+  
+  orderby(by, type = '') {
+    return this.model().orderby(by, type);
+  }
 
   order(by, type = '') {
-    return this.model().order(by, type);
+    return this.model().orderby(by, type);
   }
 
   _checkFields(fields, options = {}) {

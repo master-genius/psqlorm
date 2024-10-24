@@ -53,6 +53,16 @@ let pm = new TestModel(m);
 
   console.log(r);
 
+  console.log(
+    await m.model('users').alias('u').leftJoin('userinfo as ui', 'ui.uid=u.id')
+            .where('u.level > ? and u.role = ?', [0, 'user'])
+            .where('u.forbid = ?', [0])
+            .limit(100, 0)
+            .orderby('create_time', 'desc')
+            .fetchSql()
+            .select()
+  )
+
   r = await m.model('point_log')
           .fetchSql()
           .where({role: 'user', id : ['qwe','123','wee12','233e'], level: 2.5})
