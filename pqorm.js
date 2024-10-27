@@ -1,5 +1,6 @@
 'use strict';
 
+const process = require('node:process');
 const mo = require ('./model.js');
 const TableTrigger = require('./tableTrigger.js');
 const types = require('./dataTypes.js');

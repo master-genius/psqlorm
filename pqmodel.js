@@ -1,5 +1,6 @@
 'use strict';
 
+const process = require('node:process');
 const makeId = require('./makeId.js');
 const randstring = require('./randstring.js');
 const makeTimestamp = require('./makeTimestamp.js')
@@ -211,7 +212,7 @@ class PostgreModel {
     this.__bind_model__ = null;
 
     if (init) {
-      process.nextTick(async () => {
+      queueMicrotask(async () => {
         await this.__init__();
       });
     }
