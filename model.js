@@ -759,6 +759,7 @@ class Model {
     if (typeof data === 'string') {
       this.sqlUnit.values = data;
     } else {
+      this.validate(data);
       let vals = [];
       this.__update_timestamp__ && makeTimestamp(data, this.__update_timestamp__);
 
