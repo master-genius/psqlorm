@@ -624,6 +624,10 @@ class Model {
       if (!this.__free_lock__) {
         this.__free_lock__ = false;
         this.parent.free(this);
+      } else {
+        //在事务操作中，尽管不释放状态，也要重置执行环境记录，避免继续执行新的操作出错。
+        this.init();
+        this.resetIdInfo();
       }
     }
   }
